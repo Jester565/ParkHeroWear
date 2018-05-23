@@ -1,0 +1,112 @@
+﻿fragment DisPass on Pass {
+    id
+    name
+}
+
+fragment DisFastPass on FastPass {
+    id
+    rideID
+}
+
+fragment DisRideTime on RideTime {
+    status
+    waitRating
+    changedTime
+    changedRange
+    waitTime
+    fastPassTime
+    dateTime
+}
+
+fragment DisRide on Ride {
+    id
+    time {
+        ...DisRideTime
+    }
+    info {
+        name
+        picUrl
+        land
+        height
+        ages
+        thrills
+        photos {
+            url
+            maxSize
+            numSizes
+        }
+    }
+}
+
+fragment DisRideUpdate on RideUpdate {
+    id
+    time {
+        ...DisRideTime
+    }
+}
+
+fragment DisRideDP on RideDP {
+    waitTime
+    fastPassTime
+    dateTime
+}
+
+mutation AddPass($passID:String) {
+    addPass(passID:$passID) {
+        ...DisPass
+    }
+}
+
+mutation AddFastPass($rideID:String, $targetPasses:[String]) {
+    addFastPass(rideID:$rideID, targetPasses:$targetPasses) {
+        ...DisFastPass
+    }
+}
+
+query ListFastPasses {
+    listFastPasses {
+        ...DisFastPass
+    }
+}
+
+query ListPasses {
+    listPasses {
+    user
+        passes {
+            ...DisPass
+        }
+    }
+}
+
+query GetRides {
+    getRides {
+        ...DisRide
+    }
+}
+
+mutation UpdateRides {
+   updateRides {
+        rides {
+            ...DisRideUpdate
+        }
+   }
+}
+
+subscription RidesUpdated {
+   ridesUpdated {
+       rides {
+           ...DisRideUpdate
+       }
+   }
+}
+
+query GetRideDPs($rideID:String) {
+    getRideDPs(rideID:$rideID) {
+        rideTimes {
+            ...DisRideDP
+        }
+        predictTimes {
+            ...DisRideDP
+        }
+    }
+}

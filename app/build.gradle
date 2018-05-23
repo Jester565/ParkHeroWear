@@ -1,0 +1,55 @@
+apply plugin: 'com.android.application'
+
+apply plugin: 'kotlin-android'
+
+apply plugin: 'kotlin-android-extensions'
+
+apply plugin: 'kotlin-kapt'
+
+apply plugin: 'com.amazonaws.appsync'
+
+android {
+    compileSdkVersion 27
+    defaultConfig {
+        applicationId "com.appsync.ajcra.watchtest2"
+        minSdkVersion 25
+        targetSdkVersion 27
+        versionCode 1
+        versionName "1.0"
+        multiDexEnabled true
+    }
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+    }
+}
+
+dependencies {
+    implementation fileTree(dir: 'libs', include: ['*.jar'])
+    implementation "org.jetbrains.kotlin:kotlin-stdlib-jre7:$kotlin_version"
+    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-core:0.22.5'
+    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:0.22.5'
+    implementation 'com.google.android.support:wearable:2.3.0'
+    implementation 'com.google.android.gms:play-services-wearable:15.0.1'
+    implementation 'com.android.support:percent:27.1.1'
+    implementation 'com.android.support:support-v4:27.1.1'
+    implementation 'com.android.support:recyclerview-v7:27.1.1'
+    implementation 'com.android.support:wear:27.1.1'
+    implementation 'com.android.support:appcompat-v7:27.1.1'
+    implementation 'com.android.support.constraint:constraint-layout:1.1.0'
+    implementation 'com.android.support:palette-v7:27.1.1'
+    compileOnly 'com.google.android.wearable:wearable:2.3.0'
+    implementation 'com.amazonaws:aws-android-sdk-cognitoidentityprovider:2.6.17'
+    implementation 'com.amazonaws:aws-android-sdk-core:2.6.17'
+    implementation 'com.amazonaws:aws-android-sdk-appsync:2.6.17'
+    implementation 'com.amazonaws:aws-android-sdk-appsync-compiler:2.6.17'
+    implementation 'com.amazonaws:aws-android-sdk-s3:2.6.17'
+    implementation "android.arch.persistence.room:runtime:1.0.0"
+    implementation 'com.github.kittinunf.fuel:fuel-android:1.12.1'
+    implementation 'de.hdodenhof:circleimageview:2.2.0'
+    implementation 'org.eclipse.paho:org.eclipse.paho.client.mqttv3:1.2.0'
+    implementation 'org.eclipse.paho:org.eclipse.paho.android.service:1.1.1'
+    kapt "android.arch.persistence.room:compiler:1.0.0"
+}

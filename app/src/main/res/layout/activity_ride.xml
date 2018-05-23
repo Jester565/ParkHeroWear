@@ -1,0 +1,138 @@
+<?xml version="1.0" encoding="utf-8"?>
+<android.support.wear.widget.BoxInsetLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/drawer_layout"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+        <de.hdodenhof.circleimageview.CircleImageView
+            android:id="@+id/ride_img"
+            xmlns:app="http://schemas.android.com/apk/res-auto"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:layout_centerInParent="true"
+            android:src="@drawable/ic_cancel_black_24dp"
+            app:civ_border_width="5dp" />
+    </RelativeLayout>
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+        <LinearLayout
+            android:id="@+id/ride_mainLayout"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+            <TextView
+                android:id="@+id/ride_name"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Big Thunder Mountain Railroad"
+                android:gravity="center_horizontal"
+                android:textSize="18dp"/>
+            <View
+                android:layout_marginVertical="10dp"
+                android:layout_width="fill_parent"
+                android:layout_height="2dip"
+                android:background="#44FFFFFF" />
+            <RelativeLayout
+                android:visibility="gone"
+                android:id="@+id/ride_waitLayout"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
+                <TextView
+                    android:layout_centerHorizontal="true"
+                    android:id="@+id/ride_waitMins"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textSize="30dp"
+                    android:text="30"
+                    />
+                <TextView
+                    android:layout_centerHorizontal="true"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_below="@+id/ride_waitMins"
+                    android:textSize="15dp"
+                    android:text="Minute Wait" />
+            </RelativeLayout>
+            <TextView
+                android:id="@+id/ride_status"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center"
+                android:text="Loading..."
+                android:textSize="20dp"/>
+            <View
+                android:layout_marginVertical="10dp"
+                android:layout_width="fill_parent"
+                android:layout_height="2dip"
+                android:background="#44FFFFFF" />
+            <RelativeLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
+                <RelativeLayout
+                    android:visibility="gone"
+                    android:id="@+id/ride_fpLayout"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content">
+                    <TextView
+                        android:id="@+id/ride_fpText1"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_centerHorizontal="true"
+                        android:textSize="20dp"
+                        android:text="1:15 AM"/>
+                    <TextView
+                        android:id="@+id/ride_fpToText"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_below="@id/ride_fpText1"
+                        android:layout_centerHorizontal="true"
+                        android:textSize="14dp"
+                        android:text="to"/>
+                    <TextView
+                        android:layout_below="@id/ride_fpToText"
+                        android:id="@+id/ride_fpText2"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_centerHorizontal="true"
+                        android:textSize="20dp"
+                        android:text="1:15 AM"/>
+                    <TextView
+                        android:id="@+id/ride_fpTitle"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_below="@id/ride_fpText2"
+                        android:text="FastPass Time"
+                        android:textSize="11dp"
+                        android:layout_centerHorizontal="true" />
+                </RelativeLayout>
+                <TextView
+                    android:id="@+id/ride_fpStatus"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_centerVertical="true"
+                    android:textAlignment="center"
+                    android:gravity="center"
+                    android:text="Loading..."
+                    android:textSize="16dp" />
+            </RelativeLayout>
+            <RelativeLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
+                <ImageButton
+                    android:id="@+id/ride_pinButton"
+                    android:layout_height="50dp"
+                    android:layout_width="50dp"
+                    android:src="@drawable/ic_pin"
+                    android:layout_centerHorizontal="true"
+                    android:background="@drawable/roundbutton"/>
+            </RelativeLayout>
+        </LinearLayout>
+    </ScrollView>
+</android.support.wear.widget.BoxInsetLayout>
