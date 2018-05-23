@@ -4,7 +4,6 @@ import android.content.Context
 import com.amazonaws.mobileconnectors.appsync.fetcher.AppSyncResponseFetchers
 import com.apollographql.apollo.fetcher.ResponseFetcher
 import com.dis.ajcra.fastpass.fragment.DisRide
-import com.dis.ajcra.fastpass.fragment.DisRideUpdate
 import okhttp3.Response
 import kotlin.coroutines.experimental.suspendCoroutine
 
@@ -39,10 +38,10 @@ class RideManager {
         }, requestMode)
     }
 
-    suspend fun getRideUpdatesSuspend(): List<DisRideUpdate>? = suspendCoroutine{ cont ->
+    suspend fun getRideUpdatesSuspend(): List<DisRide>? = suspendCoroutine{ cont ->
         var numUpdates = 0
         appSync.updateRides(object: AppSyncTest.UpdateRidesCallback {
-            override fun onResponse(response: List<DisRideUpdate>?) {
+            override fun onResponse(response: List<DisRide>?) {
                 if (numUpdates == 0) {
                     cont.resume(response)
                 }

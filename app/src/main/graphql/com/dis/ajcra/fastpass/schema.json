@@ -741,7 +741,30 @@
                             "args": [],
                             "type": {
                                 "kind": "OBJECT",
-                                "name": "RideUpdateArr",
+                                "name": "RideArr",
+                                "ofType": null
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
+                            "name": "addAccelData",
+                            "description": null,
+                            "args": [
+                                {
+                                    "name": "accelData",
+                                    "description": null,
+                                    "type": {
+                                        "kind": "SCALAR",
+                                        "name": "String",
+                                        "ofType": null
+                                    },
+                                    "defaultValue": null
+                                }
+                            ],
+                            "type": {
+                                "kind": "SCALAR",
+                                "name": "String",
                                 "ofType": null
                             },
                             "isDeprecated": false,
@@ -755,7 +778,7 @@
                 },
                 {
                     "kind": "OBJECT",
-                    "name": "RideUpdateArr",
+                    "name": "RideArr",
                     "description": null,
                     "fields": [
                         {
@@ -767,44 +790,9 @@
                                 "name": null,
                                 "ofType": {
                                     "kind": "OBJECT",
-                                    "name": "RideUpdate",
+                                    "name": "Ride",
                                     "ofType": null
                                 }
-                            },
-                            "isDeprecated": false,
-                            "deprecationReason": null
-                        }
-                    ],
-                    "inputFields": null,
-                    "interfaces": [],
-                    "enumValues": null,
-                    "possibleTypes": null
-                },
-                {
-                    "kind": "OBJECT",
-                    "name": "RideUpdate",
-                    "description": null,
-                    "fields": [
-                        {
-                            "name": "id",
-                            "description": null,
-                            "args": [],
-                            "type": {
-                                "kind": "SCALAR",
-                                "name": "String",
-                                "ofType": null
-                            },
-                            "isDeprecated": false,
-                            "deprecationReason": null
-                        },
-                        {
-                            "name": "time",
-                            "description": null,
-                            "args": [],
-                            "type": {
-                                "kind": "OBJECT",
-                                "name": "RideTime",
-                                "ofType": null
                             },
                             "isDeprecated": false,
                             "deprecationReason": null
@@ -826,7 +814,7 @@
                             "args": [],
                             "type": {
                                 "kind": "OBJECT",
-                                "name": "RideUpdateArr",
+                                "name": "RideArr",
                                 "ofType": null
                             },
                             "isDeprecated": false,

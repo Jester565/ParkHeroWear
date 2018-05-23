@@ -25,6 +25,7 @@ import android.graphics.ColorFilter
 import android.view.animation.Animation
 import android.view.animation.ScaleAnimation
 import android.widget.*
+import com.dis.ajcra.fastpass.fragment.DisRideTime
 
 
 class RideActivity : WearableActivity() {
@@ -36,9 +37,7 @@ class RideActivity : WearableActivity() {
     private lateinit var cognitoManager: CognitoManager
     private lateinit var cfm: CloudFileManager
     private lateinit var rideManager: RideManager
-    private lateinit var pinDb: PinDatabase
-    private lateinit var rideID: String
-    private var pinInfo: PinInfo? = null
+    private lateinit var crDb: RideCacheDatabase
 
     private lateinit var infoLayout: LinearLayout
     private lateinit var imgView: CircleImageView
@@ -53,12 +52,31 @@ class RideActivity : WearableActivity() {
     private lateinit var pinButton: ImageButton
     private var fpParseFormat = SimpleDateFormat("HH:mm:ss")
     private var dateDispFormat = SimpleDateFormat("h:mm a")
+    private var ride: CRInfo = CRInfo()
 
     private fun adjustInset() {
         if (applicationContext.resources.configuration.isScreenRound) {
             val inset = (FACTOR * Resources.getSystem().displayMetrics.widthPixels).toInt()
             infoLayout.setPadding(inset, inset, inset, inset)
         }
+    }
+
+    fun initRide(crInfo: CRInfo, rideID: String, rideInfo: DisRide.Info, rideTime: DisRideTime?) {
+        crInfo.id = rideID
+        crInfo.name = rideInfo.name()!!
+        crInfo.picURL = rideInfo.picUrl()
+        crInfo.land = rideInfo.land()
+        crInfo.height = rideInfo.height()
+        if (rideTime != null) {
+            setRideTime(crInfo, rideTime)
+        }
+    }
+
+    fun setRideTime(crInfo: CRInfo, rideTime: DisRideTime) {
+        crInfo.waitRating = rideTime.waitRating()
+        crInfo.waitTime = rideTime.waitTime()
+        crInfo.fpTime = rideTime.fastPassTime()
+        crInfo.status = rideTime.status()
     }
 
     fun getImgObjKey(objKey: String, qualityRating: Int): String {
@@ -90,52 +108,48 @@ class RideActivity : WearableActivity() {
         })
     }
 
-    fun setRideInfo(ride: DisRide) {
-        var rideInfo = ride.info()
-        if (rideInfo != null) {
-            nameView.text = rideInfo.name()
-            var picKey = rideInfo.picUrl()
-            if (picKey != null) {
-                setImg(picKey)
-            }
+    fun setRideInfo() {
+        //var rideInfo = ride.info()
+        nameView.text = ride.name
+        var picKey = ride.picURL
+        if (picKey != null) {
+            setImg(picKey)
         }
-        var rideTime = ride.time()?.fragments()?.disRideTime()
-        if (rideTime != null) {
-            if (rideTime.waitTime() != null) {
-                waitMinsView.text = rideTime.waitTime()?.toString()
-                rideStatusView.visibility = View.GONE
-                waitLayout.visibility = View.VISIBLE
-            } else {
-                rideStatusView.text = rideTime.status()
+        //var rideTime = ride.time()?.fragments()?.disRideTime()
+        if (ride.waitTime != null) {
+            waitMinsView.text = ride.waitTime.toString()
+            rideStatusView.visibility = View.GONE
+            waitLayout.visibility = View.VISIBLE
+        } else {
+            rideStatusView.text = ride.status
+        }
+        var fpTimeStr = ride.fpTime
+        if (fpTimeStr != null) {
+            var date = fpParseFormat.parse(fpTimeStr)
+            var cal = GregorianCalendar.getInstance()
+            cal.time = date
+            fpView1.text = dateDispFormat.format(date)
+            cal.add(Calendar.HOUR, 1)
+            fpView2.text = dateDispFormat.format(cal.time)
+            fpStatusView.visibility = View.GONE
+            fpLayout.visibility = View.VISIBLE
+        } else {
+            fpStatusView.text = "No More FastPasses"
+        }
+        var waitRating = ride.waitRating?.toFloat()
+        if (waitRating != null) {
+            if (waitRating < -10.0f) {
+                waitRating = -10.0f
+            } else if (waitRating > 10.0f) {
+                waitRating = 10.0f
             }
-            var fpTimeStr = rideTime.fastPassTime()
-            if (fpTimeStr != null) {
-                var date = fpParseFormat.parse(fpTimeStr)
-                var cal = GregorianCalendar.getInstance()
-                cal.time = date
-                fpView1.text = dateDispFormat.format(date)
-                cal.add(Calendar.HOUR, 1)
-                fpView2.text = dateDispFormat.format(cal.time)
-                fpStatusView.visibility = View.GONE
-                fpLayout.visibility = View.VISIBLE
-            } else {
-                fpStatusView.text = "No More FastPasses"
-            }
-            var waitRating = rideTime.waitRating()?.toFloat()
-            if (waitRating != null) {
-                if (waitRating < -10.0f) {
-                    waitRating = -10.0f
-                } else if (waitRating > 10.0f) {
-                    waitRating = 10.0f
-                }
-                var hsl = floatArrayOf((waitRating + 10.0f)/20.0f * 120.0f, 1.0f, 0.5f)
-                imgView.borderColor = ColorUtils.HSLToColor(hsl)
-            }
+            var hsl = floatArrayOf((waitRating + 10.0f)/20.0f * 120.0f, 1.0f, 0.5f)
+            imgView.borderColor = ColorUtils.HSLToColor(hsl)
         }
     }
 
-    fun setPinButton(initialSet: Boolean) = async(UI) {
-        if (pinInfo != null) {
+    fun setPinButton(initialSet: Boolean, pinned: Boolean) = async(UI) {
+        if (pinned) {
             pinButton.setColorFilter(Color.argb(200, 0, 0, 0))
             if (!initialSet) {
                 pinButton.animate().scaleX(0.5f).scaleY(0.5f).setDuration(60).setListener(null)
@@ -153,23 +167,17 @@ class RideActivity : WearableActivity() {
         }
     }
 
-    fun bindPinButton() {
-        async {
-            pinInfo = pinDb.pinInfoDao().getPin(rideID)
-            setPinButton(true).await()
-            pinButton.setOnClickListener { view ->
-                async {
-                    if (pinInfo == null) {
-                        pinInfo = PinInfo()
-                        pinInfo!!.id = rideID
-                        pinInfo!!.rank = Date().time
-                        pinDb.pinInfoDao().addPin(pinInfo!!)
-                    } else {
-                        pinDb.pinInfoDao().delete(pinInfo!!)
-                        pinInfo = null
-                    }
-                    setPinButton(false).await()
+    fun bindPinButton() = async(UI) {
+        setPinButton(true, ride.pinned)
+        pinButton.setOnClickListener { view ->
+            async {
+                ride.pinned = !ride.pinned
+                try {
+                    crDb.crInfoDao().addCRInfo(ride)
+                } catch (ex: Exception) {
+                    Log.d("STATE", "PIN ERROR: " + ex.message)
                 }
+                setPinButton(false, ride.pinned)
             }
         }
     }
@@ -177,11 +185,18 @@ class RideActivity : WearableActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_ride)
-        rideID = intent.extras.getString("id")
+        ride.id = intent.extras.getString("id")
+        ride.name = intent.extras.getString("name")
+        ride.waitTime = intent.extras.getInt("waitTime")
+        ride.fpTime = intent.extras.getString("fpTime")
+        ride.waitRating = intent.extras.getDouble("waitRating")
+        ride.status = intent.extras.getString("status")
+        ride.picURL = intent.extras.getString("picURL")
         cognitoManager = CognitoManager.GetInstance(applicationContext)
         cfm = CloudFileManager(cognitoManager, applicationContext)
         rideManager = RideManager(applicationContext)
-        pinDb = Room.databaseBuilder(applicationContext, PinDatabase::class.java, "pins").build()
+        crDb = Room.databaseBuilder(applicationContext, RideCacheDatabase::class.java, "rides3").build()
+        bindPinButton()
 
         infoLayout = findViewById(R.id.ride_mainLayout)
         imgView = findViewById(R.id.ride_img)
@@ -195,14 +210,13 @@ class RideActivity : WearableActivity() {
         waitLayout = findViewById(R.id.ride_waitLayout)
         pinButton = findViewById(R.id.ride_pinButton)
         adjustInset()
-        bindPinButton()
 
         rideManager.getRides(object: AppSyncTest.GetRidesCallback {
             override fun onResponse(disRides: List<DisRide>) {
                 async(UI) {
-                    for (ride in disRides) {
-                        if (ride.id() == rideID) {
-                            setRideInfo(ride)
+                    for (rideUpdate in disRides) {
+                        if (rideUpdate.id() == ride.id) {
+                            setRideInfo()
                             break
                         }
                     }
@@ -213,5 +227,6 @@ class RideActivity : WearableActivity() {
 
             }
         })
+        setRideInfo()
     }
 }

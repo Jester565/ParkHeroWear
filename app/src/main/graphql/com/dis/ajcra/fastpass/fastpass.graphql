@@ -38,13 +38,6 @@ fragment DisRide on Ride {
     }
 }
 
-fragment DisRideUpdate on RideUpdate {
-    id
-    time {
-        ...DisRideTime
-    }
-}
-
 fragment DisRideDP on RideDP {
     waitTime
     fastPassTime
@@ -87,7 +80,7 @@ query GetRides {
 mutation UpdateRides {
    updateRides {
         rides {
-            ...DisRideUpdate
+            ...DisRide
         }
    }
 }
@@ -95,7 +88,7 @@ mutation UpdateRides {
 subscription RidesUpdated {
    ridesUpdated {
        rides {
-           ...DisRideUpdate
+           ...DisRide
        }
    }
 }

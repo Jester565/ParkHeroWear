@@ -170,7 +170,7 @@ class AppSyncTest {
         fun onError(ec: Int?, msg: String?)
     }
 
-    fun getRides(cb: GetRidesCallback, fetcher: ResponseFetcher = AppSyncResponseFetchers.CACHE_AND_NETWORK) {
+    fun getRides(cb: GetRidesCallback, fetcher: ResponseFetcher = AppSyncResponseFetchers.NETWORK_ONLY) {
         (client as AWSAppSyncClient).query(GetRidesQuery.builder().build())
                 .responseFetcher(fetcher)
                 .enqueue(object: GraphQLCall.Callback<GetRidesQuery.Data>() {
@@ -198,7 +198,7 @@ class AppSyncTest {
     }
 
     interface UpdateRidesCallback {
-        fun onResponse(response: List<DisRideUpdate>?)
+        fun onResponse(response: List<DisRide>?)
         fun onError(ec: Int?, msg: String?)
     }
 
@@ -213,11 +213,11 @@ class AppSyncTest {
                         Log.d("STATE", "ON RESP")
                         if (!response.hasErrors()) {
                             Log.d("STATE", "UpdateRidesMutations RESP: ")
-                            var disRideUpdates = ArrayList<DisRideUpdate>()
+                            var disRideUpdates = ArrayList<DisRide>()
                             var ridesUpdatedContainer = response.data()!!.updateRides()
                             if (ridesUpdatedContainer != null) {
                                 for (rideUpdate in ridesUpdatedContainer.rides()!!) {
-                                    var disRideUpdate = rideUpdate.fragments().disRideUpdate()
+                                    var disRideUpdate = rideUpdate.fragments().disRide()
                                     Log.d("STATE", "RideID: " + disRideUpdate.id())
                                     disRideUpdates.add(disRideUpdate)
                                 }
@@ -235,7 +235,7 @@ class AppSyncTest {
 
     interface RideUpdateSubscribeCallback {
         fun onFailure(e: Exception)
-        fun onUpdate(rideUpdates: List<DisRideUpdate>)
+        fun onUpdate(rideUpdates: List<DisRide>)
         fun onCompleted()
     }
 
@@ -251,10 +251,10 @@ class AppSyncTest {
                 Log.d("STATE", "RideUpdatedSubscription RESP: ")
                 if (!response.hasErrors()) {
                     var ridesUpdatedContainer = response.data()!!.ridesUpdated()
-                    var disRideUpdates = ArrayList<DisRideUpdate>()
+                    var disRideUpdates = ArrayList<DisRide>()
                     if (ridesUpdatedContainer != null) {
                         for (rideUpdate in ridesUpdatedContainer.rides()!!) {
-                            var disRideUpdate = rideUpdate.fragments().disRideUpdate()
+                            var disRideUpdate = rideUpdate.fragments().disRide()
                             Log.d("STATE", "RideID: " + disRideUpdate.id())
                             disRideUpdates.add(disRideUpdate)
                         }

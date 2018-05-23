@@ -41,7 +41,7 @@ class CognitoManager private constructor(appContext: Context) {
         credentialsProvider = CognitoCachingCredentialsProvider(
                 appContext, COGNITO_IDENTITY_POOL_ID, COGNITO_REGION
         )
-        val clientConf = ClientConfiguration()
+        //val clientConf = ClientConfiguration()
         val identityProviderClient = AmazonCognitoIdentityProviderClient(credentialsProvider, ClientConfiguration())
         identityProviderClient.setRegion(Region.getRegion(Regions.US_WEST_2))
 

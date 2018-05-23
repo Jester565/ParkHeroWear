@@ -9,9 +9,10 @@ import android.support.wear.widget.WearableRecyclerView
 import android.support.wearable.activity.WearableActivity
 import android.util.Log
 import android.view.View
+import com.dis.ajcra.fastpass.GetRideDPsQuery
 import com.dis.ajcra.fastpass.fragment.DisRide
 import com.dis.ajcra.fastpass.fragment.DisRideTime
-import com.dis.ajcra.fastpass.fragment.DisRideUpdate
+import kotlinx.coroutines.experimental.Deferred
 import kotlinx.coroutines.experimental.android.UI
 import kotlinx.coroutines.experimental.async
 import java.text.SimpleDateFormat
@@ -24,84 +25,120 @@ class MainActivity : WearableActivity() {
     private lateinit var recyclerView: WearableRecyclerView
     private lateinit var recyclerViewAdapter: RideRecyclerAdapter
     private lateinit var rideManager: RideManager
-    private lateinit var pinDb: PinDatabase
-    private var ridesInitialized = false
-    private var disRideUpdates = ArrayList<DisRideUpdate>()
-    private var pinnedRides = ArrayList<Ride>()
-    private var rides = ArrayList<Ride>()
-    private var dateTimeFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss")
+    private lateinit var crDb: RideCacheDatabase
+    private var disRideUpdates = ArrayList<DisRide>()
+    private var pinnedRides = ArrayList<CRInfo>()
+    private var rides = ArrayList<CRInfo>()
+    private var dateTimeFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss")
 
-    fun initRides(disRides: List<DisRide>) = async(UI) {
-        disRides.sortedBy { it->
-            it.info()!!.name()
+    fun initRide(crInfo: CRInfo, rideID: String, rideInfo: DisRide.Info, rideTime: DisRideTime?) {
+        crInfo.id = rideID
+        crInfo.name = rideInfo.name()!!
+        crInfo.picURL = rideInfo.picUrl()
+        crInfo.land = rideInfo.land()
+        crInfo.height = rideInfo.height()
+        if (rideTime != null) {
+            setRideTime(crInfo, rideTime)
         }
-        for (disRide in disRides!!) {
-            try {
-                var getPinJob = async {
-                    pinDb.pinInfoDao().getPin(disRide.id()!!)
-                }
-                var pinInfo = getPinJob.await()
-                if (pinInfo != null) {
-                    pinnedRides.add(Ride(disRide))
-                } else {
-                    rides.add(Ride(disRide))
-                }
-            } catch (ex: Exception) {
-                Log.d("STATE", "Ex: "+ ex)
-            }
-        }
-        ridesInitialized = true
-        for (rideUpdate in disRideUpdates) {
-            updateRideTime(rideUpdate.id()!!, rideUpdate.time()!!.fragments().disRideTime())
-        }
-        recyclerViewAdapter.notifyDataSetChanged()
     }
 
-    fun updateRideTime(id: String, rideTime: DisRideTime) = async(UI) {
-        var getPinJob = async {
-            pinDb.pinInfoDao().getPin(id)
+    fun setRideTime(crInfo: CRInfo, rideTime: DisRideTime) {
+        Log.d("MON", "DTStr: " + rideTime.changedTime())
+        Log.d("MON", "DT: " + dateTimeFormat.parse(rideTime.changedTime()).time.toString())
+        var timestamp = dateTimeFormat.parse(rideTime.dateTime()).time
+        var previousTimestamp = crInfo.lastChangeTime
+        if (previousTimestamp == null || previousTimestamp < timestamp) {
+            crInfo.waitRating = rideTime.waitRating()
+            crInfo.waitTime = rideTime.waitTime()
+            crInfo.fpTime = rideTime.fastPassTime()
+            crInfo.status = rideTime.status()
+            crInfo.lastChangeTime = timestamp
         }
-        var pinInfo = getPinJob.await()
-        if (pinInfo != null) {
-            var rideI = pinnedRides.indexOfFirst {it->
-                it.id == id
+    }
+
+    fun getCachedRides() = async(UI) {
+        Log.d("MON", "CACHED RIDE START")
+        async {
+            try {
+                if (rides.isEmpty()) {
+                    rides.addAll(crDb.crInfoDao().listCacheRideOfPin(false))
+                } else {}
+                if (pinnedRides.isEmpty()) {
+                    pinnedRides.addAll(crDb.crInfoDao().listCacheRideOfPin(true))
+                } else {}
+            } catch (ex: Exception) {
+                Log.d("STATE", ex.message)
             }
+        }.await()
+        recyclerViewAdapter.notifyDataSetChanged()
+        Log.d("MON", "CACHED RIDE END")
+    }
+
+    fun updateInsertRideTime(rideID: String, rideInfo: DisRide.Info, rideTime: DisRideTime?): Deferred<Pair<Boolean, CRInfo>> = async(UI) {
+        var inserted = false
+        var ride: CRInfo = CRInfo()
+        var name = rideInfo.name()
+        var rideI = rides.binarySearch {
+            String.CASE_INSENSITIVE_ORDER.compare(it.name, name)
+        }
+        if (rideTime != null) {
             if (rideI >= 0) {
-                var ride = pinnedRides.get(rideI)
-                /*
-                var newDate = rideTime.dateTime()
-                var newTimestamp = dateTimeFormat.parse(newDate).time
-                var oldDate = ride.time?.dateTime()
-                var oldTimestamp = dateTimeFormat.parse(oldDate).time
-                if (newTimestamp >= oldTimestamp) {
-                    ride?.setRideTime(rideTime)
-                    recyclerViewAdapter.notifyItemChanged(rideI)
+                ride = rides.get(rideI)
+                setRideTime(ride, rideTime)
+                recyclerViewAdapter.notifyItemChanged(rideI + pinnedRides.size)
+            } else {
+                var pinnedI = pinnedRides.binarySearch { it ->
+                    String.CASE_INSENSITIVE_ORDER.compare(it.name, name)
                 }
-                */
-                ride?.setRideTime(rideTime)
-                recyclerViewAdapter.notifyItemChanged(rideI)
+                if (pinnedI >= 0) {
+                    ride = pinnedRides.get(pinnedI)
+                    setRideTime(ride, rideTime)
+                    recyclerViewAdapter.notifyItemChanged(pinnedI)
+                } else {
+                    var actualInsertionPoint = -(rideI + 1)
+                    ride = CRInfo()
+                    initRide(ride, rideID, rideInfo, rideTime)
+                    rides.add(actualInsertionPoint, ride)
+                    inserted = true
+                }
             }
         } else {
-            var rideI = pinnedRides.indexOfFirst {it->
-                it.id == id
+            var pinnedI = pinnedRides.binarySearch { it ->
+                String.CASE_INSENSITIVE_ORDER.compare(it.name, name)
             }
-            if (rideI >= 0) {
-                var ride = rides.get(rideI)
-                ride?.setRideTime(rideTime)
-                recyclerViewAdapter.notifyItemChanged(rideI + pinnedRides.size)
+            if (rideI < 0 && pinnedI < 0) {
+                var actualInsertionPoint = -(rideI + 1)
+                ride = CRInfo()
+                initRide(ride, rideID, rideInfo, rideTime)
+                rides.add(actualInsertionPoint, ride)
+                inserted = true
             }
         }
+        Pair(inserted, ride)
     }
 
     fun getRides() {
+        Log.d("MON", "Get RIDE START")
         rideManager.getRides(object: AppSyncTest.GetRidesCallback {
             override fun onResponse(disRides: List<DisRide>) {
+                Log.d("MON", "Hello?")
                 async(UI) {
-                    if (!ridesInitialized) {
-                        initRides(disRides)
-                    } else {
-                        for (ride in disRides) {
-                            updateRideTime(ride.id()!!, ride.time()!!.fragments().disRideTime())
+                    var arr = ArrayList<CRInfo>()
+                    var sizeChanged = false
+                    for (ride in disRides) {
+                        var result = updateInsertRideTime(ride.id()!!, ride.info()!!, ride.time()?.fragments()?.disRideTime()).await()
+                        if (!sizeChanged) {
+                            sizeChanged = result.first
+                        }
+                        arr.add(result.second)
+                    }
+                    //if (sizeChanged) {
+                        recyclerViewAdapter.notifyDataSetChanged()
+                    //}
+                    Log.d("MON", "Get RIDE END")
+                    async {
+                        for (crInfo in arr) {
+                            crDb.crInfoDao().addCRInfo(crInfo)
                         }
                     }
                 }
@@ -113,61 +150,38 @@ class MainActivity : WearableActivity() {
         })
     }
 
-    /*
-    fun subToRideUpdates() {
-        rideManager.subscribeToRideUpdates(object: AppSyncTest.RideUpdateSubscribeCallback {
-            override fun onFailure(e: Exception) {
-
-            }
-
-            override fun onUpdate(response: List<DisRideUpdate>) {
-                async(UI) {
-                    if (!ridesInitialized) {
-                        disRideUpdates.addAll(response!!)
-                    }
-                    for (rideUpdate in disRideUpdates) {
-                        updateRideTime(rideUpdate.id()!!, rideUpdate.time()!!.fragments().disRideTime())
-                    }
-                }
-            }
-
-            override fun onCompleted() {
-
-            }
-
-        })
-    }
-    */
-
     fun updateRides() {
+        Log.d("MON", "Update RIDE START")
         rideManager.getRideUpdates(object: AppSyncTest.UpdateRidesCallback {
-            override fun onResponse(response: List<DisRideUpdate>?) {
-                async(UI) {
-                    if (!ridesInitialized) {
-                        disRideUpdates.addAll(response!!)
-                    }
-                    for (rideUpdate in disRideUpdates) {
-                        updateRideTime(rideUpdate.id()!!, rideUpdate.time()!!.fragments().disRideTime())
-                    }
+            override fun onResponse(response: List<DisRide>?) {
+                for (ride in disRideUpdates) {
+                    updateInsertRideTime(ride.id()!!, ride.info()!!, ride.time()?.fragments()?.disRideTime())
                 }
+                Log.d("MON", "Update RIDE End")
             }
 
             override fun onError(ec: Int?, msg: String?) {
 
             }
-
         })
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        Log.d("MON", "ON CREATE START")
         setContentView(R.layout.activity_main)
         cognitoManager = CognitoManager.GetInstance(applicationContext)
+        Log.d("MON", "CFM START")
         cfm = CloudFileManager.GetInstance(cognitoManager, applicationContext)
+        Log.d("MON", "CFM END")
         recyclerView = findViewById(R.id.main_rideRecycler)
         recyclerViewAdapter = RideRecyclerAdapter(rides, pinnedRides, cfm)
+        Log.d("MON", "R START")
         rideManager = RideManager(applicationContext)
-        pinDb = Room.databaseBuilder(applicationContext, PinDatabase::class.java, "pins").build()
+        Log.d("MON", "R END")
+        Log.d("MON", "D START")
+        crDb = Room.databaseBuilder(applicationContext, RideCacheDatabase::class.java, "rides3").build()
+        Log.d("MON", "D END")
         recyclerView.layoutManager = WearableLinearLayoutManager(this, object: WearableLinearLayoutManager.LayoutCallback() {
             private val MAX_ICON_PROGRESS = 0.65f
 
@@ -195,13 +209,14 @@ class MainActivity : WearableActivity() {
         //recyclerView.adapter
         // Enables Always-on
         //subToRideUpdates()
-        updateRides()
-        getRides()
+        getCachedRides()
+
         setAmbientEnabled()
     }
 
-    fun migratePinnedRides(pinInfoList: List<PinInfo>) {
-        var pinnedRidesClone = pinnedRides.clone() as ArrayList<Ride>
+    /*
+    fun migratePinnedRides(pinInfoList: List<CRI>) {
+        var pinnedRidesClone = pinnedRides.clone() as ArrayList<CRInfo>
         for (pinInfo in pinInfoList) {
             var rideI = pinnedRidesClone.indexOfFirst {
                 pinInfo.id == it.id
@@ -225,9 +240,16 @@ class MainActivity : WearableActivity() {
         }
         recyclerViewAdapter.notifyDataSetChanged()
     }
+    */
 
     override fun onResume() {
         super.onResume()
+        Log.d("MON", "CALLING")
+        updateRides()
+        //getCachedRides()
+        getRides()
+        Log.d("MON", "CALLING END")
+        /*
         if (ridesInitialized) {
             async(UI) {
                 var listPinsJob = async {
@@ -249,5 +271,6 @@ class MainActivity : WearableActivity() {
                 }
             }
         }
+        */
     }
 }

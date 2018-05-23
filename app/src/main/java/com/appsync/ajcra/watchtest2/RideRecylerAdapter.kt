@@ -12,7 +12,6 @@ import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.TextView
 import com.amazonaws.mobileconnectors.s3.transferutility.TransferState
-import com.dis.ajcra.fastpass.fragment.DisRideUpdate
 import de.hdodenhof.circleimageview.CircleImageView
 import kotlinx.coroutines.experimental.android.UI
 import kotlinx.coroutines.experimental.async
@@ -20,11 +19,11 @@ import java.io.File
 
 //should contain click listeners, can have different ViewHolders
 class RideRecyclerAdapter: RecyclerView.Adapter<RideRecyclerAdapter.ViewHolder> {
-    private var rides: ArrayList<Ride>
-    private var pinnedRides: ArrayList<Ride>
+    private var rides: ArrayList<CRInfo>
+    private var pinnedRides: ArrayList<CRInfo>
     private var cfm: CloudFileManager
 
-    constructor(rides: ArrayList<Ride>, pinnedRides: ArrayList<Ride>, cfm: CloudFileManager) {
+    constructor(rides: ArrayList<CRInfo>, pinnedRides: ArrayList<CRInfo>, cfm: CloudFileManager) {
         this.rides = rides
         this.pinnedRides = pinnedRides
         this.cfm = cfm
@@ -37,7 +36,7 @@ class RideRecyclerAdapter: RecyclerView.Adapter<RideRecyclerAdapter.ViewHolder> 
     }
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
-        lateinit var ride: Ride
+        lateinit var ride: CRInfo
         if (position < pinnedRides.size) {
             ride = pinnedRides.get(position)
         } else {
@@ -46,18 +45,23 @@ class RideRecyclerAdapter: RecyclerView.Adapter<RideRecyclerAdapter.ViewHolder> 
         if (holder != null) {
             async(UI) {
                 holder!!.rootView.setOnClickListener {
-                    var rideID = ride.id
                     var intent = Intent(holder!!.ctx, RideActivity::class.java)
-                    intent.putExtra("id", rideID)
+                    intent.putExtra("id", ride.id)
+                    intent.putExtra("name", ride.name)
+                    intent.putExtra("waitTime", ride.waitTime)
+                    intent.putExtra("fpTime", ride.fpTime)
+                    intent.putExtra("waitRating", ride.waitRating)
+                    intent.putExtra("status", ride.status)
+                    intent.putExtra("picURL", ride.picURL)
                     holder!!.ctx.startActivity(intent)
                 }
-                holder.nameView.text = ride.info.name()!!
-                var waitTime = ride.time?.waitTime()
+                holder.nameView.text = ride.name
+                var waitTime = ride.waitTime
                 if (waitTime != null) {
                     holder.waitMinsView.visibility = View.VISIBLE
                     holder.waitMinsView.text = waitTime.toString()
                 }
-                var waitRating = ride.time?.waitRating()?.toFloat()
+                var waitRating = ride.waitRating?.toFloat()
                 if (waitRating != null) {
                     if (waitRating < -10.0f) {
                         waitRating = -10.0f
@@ -69,7 +73,7 @@ class RideRecyclerAdapter: RecyclerView.Adapter<RideRecyclerAdapter.ViewHolder> 
                 }
             }
 
-            var picUrl = ride.info.picUrl()
+            var picUrl = ride.picURL
             if (picUrl != null && holder.imgKey != picUrl)
             {
                 holder.imgKey = picUrl
