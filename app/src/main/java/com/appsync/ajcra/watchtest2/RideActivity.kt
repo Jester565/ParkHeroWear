@@ -37,7 +37,6 @@ class RideActivity : WearableActivity() {
     private lateinit var cognitoManager: CognitoManager
     private lateinit var cfm: CloudFileManager
     private lateinit var rideManager: RideManager
-    private lateinit var crDb: RideCacheDatabase
 
     private lateinit var infoLayout: LinearLayout
     private lateinit var imgView: CircleImageView
@@ -52,31 +51,16 @@ class RideActivity : WearableActivity() {
     private lateinit var pinButton: ImageButton
     private var fpParseFormat = SimpleDateFormat("HH:mm:ss")
     private var dateDispFormat = SimpleDateFormat("h:mm a")
-    private var ride: CRInfo = CRInfo()
+    private var infoSet = false
+    private var pinned = false
+    lateinit private var rideID: String
+    private var lrcb: RideManager.ListRidesCB? = null
 
     private fun adjustInset() {
         if (applicationContext.resources.configuration.isScreenRound) {
             val inset = (FACTOR * Resources.getSystem().displayMetrics.widthPixels).toInt()
             infoLayout.setPadding(inset, inset, inset, inset)
         }
-    }
-
-    fun initRide(crInfo: CRInfo, rideID: String, rideInfo: DisRide.Info, rideTime: DisRideTime?) {
-        crInfo.id = rideID
-        crInfo.name = rideInfo.name()!!
-        crInfo.picURL = rideInfo.picUrl()
-        crInfo.land = rideInfo.land()
-        crInfo.height = rideInfo.height()
-        if (rideTime != null) {
-            setRideTime(crInfo, rideTime)
-        }
-    }
-
-    fun setRideTime(crInfo: CRInfo, rideTime: DisRideTime) {
-        crInfo.waitRating = rideTime.waitRating()
-        crInfo.waitTime = rideTime.waitTime()
-        crInfo.fpTime = rideTime.fastPassTime()
-        crInfo.status = rideTime.status()
     }
 
     fun getImgObjKey(objKey: String, qualityRating: Int): String {
@@ -108,12 +92,15 @@ class RideActivity : WearableActivity() {
         })
     }
 
-    fun setRideInfo() {
+    fun updateRide(ride: CRInfo) {
         //var rideInfo = ride.info()
-        nameView.text = ride.name
-        var picKey = ride.picURL
-        if (picKey != null) {
-            setImg(picKey)
+        if (!infoSet) {
+            nameView.text = ride.name
+            var picKey = ride.picURL
+            if (picKey != null) {
+                setImg(picKey)
+            }
+            bindPinButton(ride.pinned)
         }
         //var rideTime = ride.time()?.fragments()?.disRideTime()
         if (ride.waitTime != null) {
@@ -167,17 +154,20 @@ class RideActivity : WearableActivity() {
         }
     }
 
-    fun bindPinButton() = async(UI) {
-        setPinButton(true, ride.pinned)
+    fun bindPinButton(pinned: Boolean) = async(UI) {
+        this@RideActivity.pinned = pinned
+        setPinButton(true, pinned)
         pinButton.setOnClickListener { view ->
             async {
-                ride.pinned = !ride.pinned
+                this@RideActivity.pinned = !this@RideActivity.pinned
+                //ride.pinned = !ride.pinned
                 try {
-                    crDb.crInfoDao().addCRInfo(ride)
+                    //crDb.crInfoDao().addCRInfo(ride)
+                    rideManager.updatePinned(rideID, this@RideActivity.pinned)
                 } catch (ex: Exception) {
                     Log.d("STATE", "PIN ERROR: " + ex.message)
                 }
-                setPinButton(false, ride.pinned)
+                setPinButton(false, this@RideActivity.pinned)
             }
         }
     }
@@ -185,18 +175,12 @@ class RideActivity : WearableActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_ride)
-        ride.id = intent.extras.getString("id")
-        ride.name = intent.extras.getString("name")
-        ride.waitTime = intent.extras.getInt("waitTime")
-        ride.fpTime = intent.extras.getString("fpTime")
-        ride.waitRating = intent.extras.getDouble("waitRating")
-        ride.status = intent.extras.getString("status")
-        ride.picURL = intent.extras.getString("picURL")
+        rideID = intent.extras.getString("id")
         cognitoManager = CognitoManager.GetInstance(applicationContext)
         cfm = CloudFileManager(cognitoManager, applicationContext)
-        rideManager = RideManager(applicationContext)
-        crDb = Room.databaseBuilder(applicationContext, RideCacheDatabase::class.java, "rides3").build()
-        bindPinButton()
+        rideManager = RideManager.GetInstance(applicationContext)
+
+        getRide()
 
         infoLayout = findViewById(R.id.ride_mainLayout)
         imgView = findViewById(R.id.ride_img)
@@ -210,23 +194,27 @@ class RideActivity : WearableActivity() {
         waitLayout = findViewById(R.id.ride_waitLayout)
         pinButton = findViewById(R.id.ride_pinButton)
         adjustInset()
+    }
 
-        rideManager.getRides(object: AppSyncTest.GetRidesCallback {
-            override fun onResponse(disRides: List<DisRide>) {
-                async(UI) {
-                    for (rideUpdate in disRides) {
-                        if (rideUpdate.id() == ride.id) {
-                            setRideInfo()
-                            break
-                        }
-                    }
+    fun getRide() {
+        async(UI) {
+            lrcb = rideManager.getRide(rideID, object : RideManager.GetRideCB {
+                override fun onUpdate(ride: CRInfo) {
+                    updateRide(ride)
                 }
-            }
 
-            override fun onError(ec: Int?, msg: String?) {
+                override fun onFinalUpdate(ride: CRInfo) {
+                    //setRide(ride)
+                }
+            })
+        }
+    }
 
-            }
-        })
-        setRideInfo()
+    override fun onStop() {
+        super.onStop()
+        var cb = lrcb
+        if (cb != null) {
+            rideManager.unsubscribe(cb)
+        }
     }
 }

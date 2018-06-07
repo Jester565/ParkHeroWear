@@ -106,6 +106,7 @@ class FastPassFace : CanvasWatchFaceService() {
             return str
         }
 
+        /*
         fun initBmp() = async {
             var rides = rideManager.getRidesSuspend(AppSyncResponseFetchers.CACHE_FIRST)
             if (rides != null) {
@@ -138,6 +139,7 @@ class FastPassFace : CanvasWatchFaceService() {
                 }
             }
         }
+        */
     }
 
     inner class Engine : CanvasWatchFaceService.Engine() {
@@ -201,7 +203,7 @@ class FastPassFace : CanvasWatchFaceService() {
             initializeBackground()
             initializeWatchFace()
 
-            fpPoint.initBmp()
+            //fpPoint.initBmp()
         }
 
         private fun initializeBackground() {

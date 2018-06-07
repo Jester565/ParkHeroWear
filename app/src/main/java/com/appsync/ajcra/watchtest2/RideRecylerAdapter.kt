@@ -2,6 +2,7 @@ package com.appsync.ajcra.watchtest2
 
 import android.content.Context
 import android.content.Intent
+import android.graphics.Color
 import android.net.Uri
 import android.support.v4.graphics.ColorUtils
 import android.support.v7.widget.RecyclerView
@@ -22,11 +23,13 @@ class RideRecyclerAdapter: RecyclerView.Adapter<RideRecyclerAdapter.ViewHolder> 
     private var rides: ArrayList<CRInfo>
     private var pinnedRides: ArrayList<CRInfo>
     private var cfm: CloudFileManager
+    private var rideClickHandler: (String)->Unit
 
-    constructor(rides: ArrayList<CRInfo>, pinnedRides: ArrayList<CRInfo>, cfm: CloudFileManager) {
+    constructor(rides: ArrayList<CRInfo>, pinnedRides: ArrayList<CRInfo>, cfm: CloudFileManager, rideClickHandler: (String)->Unit) {
         this.rides = rides
         this.pinnedRides = pinnedRides
         this.cfm = cfm
+        this.rideClickHandler = rideClickHandler
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
@@ -45,21 +48,15 @@ class RideRecyclerAdapter: RecyclerView.Adapter<RideRecyclerAdapter.ViewHolder> 
         if (holder != null) {
             async(UI) {
                 holder!!.rootView.setOnClickListener {
-                    var intent = Intent(holder!!.ctx, RideActivity::class.java)
-                    intent.putExtra("id", ride.id)
-                    intent.putExtra("name", ride.name)
-                    intent.putExtra("waitTime", ride.waitTime)
-                    intent.putExtra("fpTime", ride.fpTime)
-                    intent.putExtra("waitRating", ride.waitRating)
-                    intent.putExtra("status", ride.status)
-                    intent.putExtra("picURL", ride.picURL)
-                    holder!!.ctx.startActivity(intent)
+                    rideClickHandler(ride.id)
                 }
                 holder.nameView.text = ride.name
                 var waitTime = ride.waitTime
                 if (waitTime != null) {
                     holder.waitMinsView.visibility = View.VISIBLE
                     holder.waitMinsView.text = waitTime.toString()
+                } else {
+                    holder.waitMinsView.visibility = View.GONE
                 }
                 var waitRating = ride.waitRating?.toFloat()
                 if (waitRating != null) {
@@ -70,10 +67,13 @@ class RideRecyclerAdapter: RecyclerView.Adapter<RideRecyclerAdapter.ViewHolder> 
                     }
                     var hsl = floatArrayOf((waitRating + 10.0f)/20.0f * 120.0f, 1.0f, 0.5f)
                     holder.imgView.borderColor = ColorUtils.HSLToColor(hsl)
+                } else {
+                    holder.imgView.borderColor = Color.BLACK
                 }
             }
 
             var picUrl = ride.picURL
+            //Log.d("STATE", "PICURL: " + ride.picURL)
             if (picUrl != null && holder.imgKey != picUrl)
             {
                 holder.imgKey = picUrl
@@ -97,10 +97,13 @@ class RideRecyclerAdapter: RecyclerView.Adapter<RideRecyclerAdapter.ViewHolder> 
                             Log.d("STATE", "Ride download complete")
                             async(UI) {
                                 holder.imgView.setImageURI(Uri.fromFile(file))
+                                Log.d("STATE", "IMAGE SET")
                             }
                         }
                     })
                 }
+            } else {
+                holder.imgView.setImageResource(R.drawable.ic_cancel_black_24dp)
             }
         }
     }

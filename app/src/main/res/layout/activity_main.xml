@@ -1,7 +1,33 @@
-<?xml version="1.0" encoding="utf-8"?>
-<android.support.wear.widget.WearableRecyclerView
+<android.support.wear.widget.drawer.WearableDrawerLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
-    android:id="@+id/main_rideRecycler"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/drawer_layout"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:scrollbars="vertical" />
+    android:layout_height="match_parent">
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        xmlns:android="http://schemas.android.com/apk/res/android">
+        <android.support.wear.widget.WearableRecyclerView
+            xmlns:android="http://schemas.android.com/apk/res/android"
+            android:id="@+id/main_rideRecycler"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:scrollbars="vertical" />
+        <ProgressBar
+            android:id="@+id/main_progressBar"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_centerHorizontal="true"
+            android:layout_centerVertical="true"/>
+    </RelativeLayout>
+    <android.support.wear.widget.drawer.WearableNavigationDrawerView
+        android:id="@+id/top_navigation_drawer"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"/>
+    <android.support.wear.widget.drawer.WearableActionDrawerView
+        android:id="@+id/bottom_action_drawer"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        app:actionMenu="@menu/action_drawer_menu"/>
+</android.support.wear.widget.drawer.WearableDrawerLayout>

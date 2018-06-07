@@ -7,19 +7,14 @@ import android.arch.persistence.room.Room
 import android.content.Intent
 import android.graphics.Color
 import android.os.Bundle
-import android.support.v4.content.ContextCompat.startActivity
 import android.support.v7.widget.RecyclerView
 import android.support.wear.widget.WearableLinearLayoutManager
 import android.support.wear.widget.WearableRecyclerView
-import android.support.wear.widget.drawer.WearableActionDrawerView
-import android.support.wear.widget.drawer.WearableNavigationDrawerView
 import android.support.wearable.activity.WearableActivity
-import android.support.wearable.view.drawer.WearableNavigationDrawer
 import android.util.Log
 import android.view.View
 import android.widget.ProgressBar
 import com.amazonaws.mobileconnectors.apigateway.ApiClientFactory
-import com.appsync.ajcra.watchtest2.RideManager.Companion.rideManager
 import com.appsync.ajcra.watchtest2.model.RideInfo
 import com.appsync.ajcra.watchtest2.model.RideInfoInfo
 import com.appsync.ajcra.watchtest2.model.RideInfoTime
@@ -33,7 +28,7 @@ import java.text.SimpleDateFormat
 import java.time.format.DateTimeFormatter
 
 
-class MainActivity : WearableActivity() {
+class RideTimesActivity : WearableActivity() {
     private lateinit var cognitoManager: CognitoManager
     private lateinit var cfm: CloudFileManager
     private lateinit var recyclerView: WearableRecyclerView
@@ -43,84 +38,6 @@ class MainActivity : WearableActivity() {
     private var pinnedRides = ArrayList<CRInfo>()
     private var rides = ArrayList<CRInfo>()
     private var clickedRideID: String? = null
-    private lateinit var mWearableNavigationDrawer: WearableNavigationDrawerView
-    private lateinit var mWearableActionDrawer: WearableActionDrawerView
-
-    var listRideCB = object: RideManager.ListRidesCB {
-        override fun onAllUpdated() {
-            animateBackground()
-        }
-
-        override fun init(rideUpdates: ArrayList<CRInfo>) {
-            if (rides.isEmpty() && pinnedRides.isEmpty()) {
-                for (ride in rideUpdates) {
-                    if (ride.pinned) {
-                        pinnedRides.add(ride)
-                    } else {
-                        rides.add(ride)
-                    }
-                }
-                recyclerViewAdapter.notifyDataSetChanged()
-            }
-            progressBar.visibility = View.GONE
-        }
-
-        override fun onAdd(ride: CRInfo) {
-            addRide(ride)
-        }
-
-        override fun onUpdate(ride: CRInfo) {
-            if (ride.pinned) {
-                var arrI = pinnedRides.binarySearch {
-                    it.name.compareTo(ride.name)
-                }
-                if (arrI < 0) {
-                    Log.e("ERRRRRR", "RideI was less than 0 on onUpdate")
-                    return
-                }
-                pinnedRides[arrI] = ride
-                recyclerViewAdapter.notifyItemChanged(arrI)
-            } else {
-                var arrI = rides.binarySearch {
-                    it.name.compareTo(ride.name)
-                }
-                if (arrI < 0) {
-                    Log.e("ERRRRRR", "RideI was less than 0 on onUpdate")
-                    return
-                }
-                rides[arrI] = ride
-                recyclerViewAdapter.notifyItemChanged(arrI + pinnedRides.size)
-            }
-        }
-    }
-
-    fun initDrawerHandler(){
-        mWearableNavigationDrawer = findViewById(R.id.top_navigation_drawer) as WearableNavigationDrawerView
-        // Peeks navigation drawer on the top.
-        mWearableNavigationDrawer.getController().peekDrawer()
-        // Bottom action drawer
-        mWearableActionDrawer = findViewById(R.id.bottom_action_drawer) as WearableActionDrawerView
-        // Peeks action drawer on the bottom.
-        mWearableActionDrawer.getController().peekDrawer()
-        mWearableActionDrawer.menu.removeItem(R.id.menu_rides)
-        mWearableActionDrawer.setOnMenuItemClickListener({
-            Log.d("STATE", "MenuClickListener: " + it.title)
-            when (it.title) {
-                "Rides" -> {
-                    var intent = Intent(this, MainActivity::class.java)
-                    startActivity(intent)
-                }
-                "Account" -> {
-                    var intent = Intent(this, AccountActivity::class.java)
-                    startActivity(intent)
-                }
-                "Settings" -> {
-
-                }
-            }
-            true
-        })
-    }
 
     val rideClickHandler: (String) -> Unit = { rideID ->
         clickedRideID = rideID
@@ -129,26 +46,68 @@ class MainActivity : WearableActivity() {
         this.startActivity(intent)
     }
 
-    fun addRide(ride: CRInfo) {
-        if (ride.pinned) {
-            var arrI = pinnedRides.binarySearch {
-                it.name.compareTo(ride.name)
-            }
-            var insertI = -(arrI + 1)
-            pinnedRides.add(insertI, ride)
-            recyclerViewAdapter.notifyItemInserted(insertI)
-        } else {
-            var arrI = rides.binarySearch {
-                it.name.compareTo(ride.name)
-            }
-            var insertI = -(arrI + 1)
-            rides.add(insertI, ride)
-            recyclerViewAdapter.notifyItemInserted(insertI + pinnedRides.size)
-        }
-    }
-
     fun getRides() {
-        rideManager.listRides(listRideCB)
+        rideManager.listRides(object: RideManager.ListRidesCB {
+            override fun onAllUpdated() {
+                animateBackground()
+            }
+
+            override fun init(rideUpdates: ArrayList<CRInfo>) {
+                if (rides.isEmpty() && pinnedRides.isEmpty()) {
+                    for (ride in rideUpdates) {
+                        if (ride.pinned) {
+                            pinnedRides.add(ride)
+                        } else {
+                            rides.add(ride)
+                        }
+                    }
+                    recyclerViewAdapter.notifyDataSetChanged()
+                }
+                progressBar.visibility = View.GONE
+            }
+
+            override fun onAdd(ride: CRInfo) {
+                if (ride.pinned) {
+                    var arrI = pinnedRides.binarySearch {
+                        it.name.compareTo(ride.name)
+                    }
+                    var insertI = -(arrI + 1)
+                    pinnedRides.add(insertI, ride)
+                    recyclerViewAdapter.notifyItemInserted(insertI)
+                } else {
+                    var arrI = rides.binarySearch {
+                        it.name.compareTo(ride.name)
+                    }
+                    var insertI = -(arrI + 1)
+                    rides.add(insertI, ride)
+                    recyclerViewAdapter.notifyItemInserted(insertI + pinnedRides.size)
+                }
+            }
+
+            override fun onUpdate(ride: CRInfo) {
+                if (ride.pinned) {
+                    var arrI = pinnedRides.binarySearch {
+                        it.name.compareTo(ride.name)
+                    }
+                    if (arrI < 0) {
+                        Log.e("ERRRRRR", "RideI was less than 0 on onUpdate")
+                        return
+                    }
+                    pinnedRides[arrI] = ride
+                    recyclerViewAdapter.notifyItemChanged(arrI)
+                } else {
+                    var arrI = rides.binarySearch {
+                        it.name.compareTo(ride.name)
+                    }
+                    if (arrI < 0) {
+                        Log.e("ERRRRRR", "RideI was less than 0 on onUpdate")
+                        return
+                    }
+                    rides[arrI] = ride
+                    recyclerViewAdapter.notifyItemChanged(arrI + pinnedRides.size)
+                }
+            }
+        })
     }
 
     fun animateBackground() {
@@ -193,7 +152,6 @@ class MainActivity : WearableActivity() {
         recyclerView.setItemViewCacheSize(200)
         recyclerView.isDrawingCacheEnabled = true
         recyclerView.isEdgeItemsCenteringEnabled  = true
-        initDrawerHandler()
     }
 
     override fun onResume() {
@@ -212,27 +170,11 @@ class MainActivity : WearableActivity() {
                             Log.e("ERRRRRR", "RideI was less than 0 on onUpdate")
                             return
                         }
-                        pinnedRides.removeAt(arrI)
-                        recyclerViewAdapter.notifyItemRemoved(arrI)
-                    } else {
-                        var arrI = rides.binarySearch {
-                            it.name.compareTo(ride.name)
-                        }
-                        if (arrI < 0) {
-                            Log.e("ERRRRRR", "RideI was less than 0 on onUpdate")
-                            return
-                        }
-                        rides.removeAt(arrI)
-                        recyclerViewAdapter.notifyItemRemoved(arrI + pinnedRides.size)
+                        pinnedRides[arrI] = ride
+                        recyclerViewAdapter.notifyItemChanged(arrI)
                     }
-                    addRide(ride)
                 }
             }
         }
-    }
-
-    override fun onStop() {
-        super.onStop()
-        rideManager.unsubscribe(listRideCB)
     }
 }
