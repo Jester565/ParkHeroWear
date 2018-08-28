@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <android.support.v7.widget.CardView
     android:layout_width="match_parent"
-    android:layout_height="wrap_content"
+    android:layout_height="match_parent"
     xmlns:android="http://schemas.android.com/apk/res/android">
     <RelativeLayout
         android:layout_width="match_parent"
@@ -11,50 +11,36 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="Name"
-            android:textSize="24dp"
+            android:textSize="12dp"
             android:layout_centerHorizontal="true"
-            android:layout_marginTop="3dp"
-            android:layout_marginBottom="10dp"/>
+            android:layout_marginTop="10dp" />
         <ImageView
             android:id="@+id/passrow_barcode"
-            android:layout_below="@id/passrow_name"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="10dp"/>
-        <TextView
-            android:layout_below="@+id/passrow_barcode"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:id="@+id/passrow_id"
-            android:text="ID"
-            android:layout_centerVertical="true"
             android:layout_centerHorizontal="true"
-            android:paddingBottom="10dp"/>
+            android:layout_centerVertical="true"/>
+        <TextView
+            android:id="@+id/passrow_id"
+            android:layout_above="@+id/passrow_type"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_centerHorizontal="true"
+            android:textSize="10dp"/>
         <TextView
             android:id="@+id/passrow_type"
-            android:layout_below="@id/passrow_id"
+            android:layout_above="@id/passrow_expDate"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_alignParentLeft="true"
-            android:layout_toLeftOf="@+id/passrow_space"
-            android:layout_marginLeft="20dp"
-            android:layout_marginRight="20dp"
-            android:gravity="center_horizontal"/>
-        <Space
-            android:id="@+id/passrow_space"
-            android:layout_below="@id/passrow_id"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_centerHorizontal="true"/>
+            android:layout_centerHorizontal="true"
+            android:textSize="10dp"/>
         <TextView
             android:id="@+id/passrow_expDate"
-            android:layout_below="@id/passrow_id"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_alignParentRight="true"
-            android:layout_toRightOf="@+id/passrow_space"
-            android:layout_marginLeft="20dp"
-            android:layout_marginRight="20dp"
-            android:gravity="center_horizontal"/>
+            android:layout_centerHorizontal="true"
+            android:layout_marginBottom="10dp"
+            android:layout_alignParentBottom="true"
+            android:textSize="10dp" />
     </RelativeLayout>
 </android.support.v7.widget.CardView>

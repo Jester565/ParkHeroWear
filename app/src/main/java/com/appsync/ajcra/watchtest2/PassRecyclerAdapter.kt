@@ -15,14 +15,13 @@ import com.google.zxing.WriterException
 import com.google.zxing.common.BitMatrix
 import java.text.SimpleDateFormat
 import java.util.*
+import android.util.DisplayMetrics
+import android.util.Log
 
-class PassRecyclerAdapter: RecyclerView.Adapter<PassRecyclerAdapter.ViewHolder> {
+
+class PassRecyclerAdapter(private var dataset: ArrayList<DisPass>, private var screenWidth: Int, private var screenHeight: Int): RecyclerView.Adapter<PassRecyclerAdapter.ViewHolder>() {
     private var dateParser = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss")
     private var dateDispFormat = SimpleDateFormat("MM/dd/yyyy")
-    private var dataset = ArrayList<DisPass>()
-    constructor(dataset: ArrayList<DisPass>) {
-        this.dataset = dataset
-    }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
         var view = LayoutInflater.from(parent?.context).inflate(R.layout.row_pass, parent, false)
@@ -36,7 +35,8 @@ class PassRecyclerAdapter: RecyclerView.Adapter<PassRecyclerAdapter.ViewHolder> 
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         var pass = dataset.get(position)
-        var bitmap = encodeAsBitmap(pass.id(), BarcodeFormat.CODE_128, 800, 300)
+        Log.d("STATE", "IMG_WIDTH: " + screenWidth + " IMG HEIGHT: " + screenHeight)
+        var bitmap = encodeAsBitmap(pass.id(), BarcodeFormat.CODE_128, screenWidth * 2, (screenHeight.toFloat() * 0.875f).toInt())
         holder.barcodeImg.setImageBitmap(bitmap)
         holder.idText.text = pass.id()
         holder.nameText.text = pass.name()

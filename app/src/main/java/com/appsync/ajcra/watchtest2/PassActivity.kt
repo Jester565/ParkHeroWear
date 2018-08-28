@@ -19,6 +19,9 @@ import de.hdodenhof.circleimageview.CircleImageView
 import kotlinx.coroutines.experimental.android.UI
 import kotlinx.coroutines.experimental.async
 import java.io.File
+import android.util.DisplayMetrics
+
+
 
 class PassActivity : WearableActivity() {
     companion object {
@@ -154,7 +157,9 @@ class PassActivity : WearableActivity() {
         profileImg = findViewById(R.id.pass_profimg)
 
         recyclerView.layoutManager = LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false)
-        adapter = PassRecyclerAdapter(dataset)
+        val displayMetrics = DisplayMetrics()
+        windowManager.defaultDisplay.getMetrics(displayMetrics)
+        adapter = PassRecyclerAdapter(dataset, displayMetrics.widthPixels, displayMetrics.heightPixels)
         val helper = PagerSnapHelper()
         helper.attachToRecyclerView(recyclerView)
         recyclerView.adapter = adapter
