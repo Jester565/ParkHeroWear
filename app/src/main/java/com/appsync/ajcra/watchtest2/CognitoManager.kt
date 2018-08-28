@@ -16,7 +16,8 @@ import kotlinx.coroutines.experimental.Deferred
 import kotlinx.coroutines.experimental.async
 import java.util.*
 
-class CognitoManager private constructor(appContext: Context) {
+class CognitoManager {
+
     fun isLoggedIn(): Deferred<Boolean> = async{
         credentialsProvider.refresh()
         (credentialsProvider.logins != null && credentialsProvider.logins.size > 0)
@@ -37,11 +38,10 @@ class CognitoManager private constructor(appContext: Context) {
     private val userPool: CognitoUserPool
     val credentialsProvider: CognitoCachingCredentialsProvider
 
-    init {
+    constructor(appContext: Context) {
         credentialsProvider = CognitoCachingCredentialsProvider(
                 appContext, COGNITO_IDENTITY_POOL_ID, COGNITO_REGION
         )
-        //val clientConf = ClientConfiguration()
         val identityProviderClient = AmazonCognitoIdentityProviderClient(credentialsProvider, ClientConfiguration())
         identityProviderClient.setRegion(Region.getRegion(Regions.US_WEST_2))
 
@@ -198,12 +198,19 @@ class CognitoManager private constructor(appContext: Context) {
             Log.d("STATE", "Login: " + key)
         }
         credentialsProvider.logins = logins
+        for ((key) in credentialsProvider.logins) {
+            Log.d("STATE", "Login: " + key + " : " + logins.get(key))
+        }
         async {
-            credentialsProvider.refresh()
-            Log.d("STATE", "IdentityID: " + credentialsProvider.identityId)
-            Log.d("STATE", "Aws AccessID: " + credentialsProvider.credentials.awsAccessKeyId)
-            Log.d("STATE", "Aws Secret: " + credentialsProvider.credentials.awsSecretKey)
-            Log.d("STATE", "Token: " + credentialsProvider.credentials.sessionToken)
+            try {
+                credentialsProvider.refresh()
+                Log.d("STATE", "IdentityID: " + credentialsProvider.identityId)
+                Log.d("STATE", "Aws AccessID: " + credentialsProvider.credentials.awsAccessKeyId)
+                Log.d("STATE", "Aws Secret: " + credentialsProvider.credentials.awsSecretKey)
+                Log.d("STATE", "Token: " + credentialsProvider.credentials.sessionToken)
+            } catch(ex: Exception) {
+                Log.d("STATE", "Refresh on AddLogin Exception: " + ex + " :: " + credentialsProvider.identityPoolId)
+            }
         }
     }
 

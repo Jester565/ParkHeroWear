@@ -145,6 +145,7 @@ class RideManager {
             subscribe(cb)
         }
         var now = Date()
+        Log.d("STATE", "Gra")
         if (lastListTime == null || now.time - lastListTime!!.time > LIST_TIME_DIF) {
             reqCount = 0
             lastListTime = Date()
@@ -157,10 +158,10 @@ class RideManager {
         }
     }
 
-    private fun _listRides() = async {
+    private fun _listRides() {
+        Log.d("STATE", "beep")
         var requestCompleteCount = 0
         var cachedRidesJob = async(UI) {
-            initRides().await()
             for (subscriber in subscribers) {
                 subscriber.init(rides)
             }
@@ -250,9 +251,11 @@ class RideManager {
     }
 
     private fun initRides() = async {
+        Log.d("STATE", "Zoinks")
         if (rides.isEmpty()) {
             var cachedRideList = getCachedRides().await()
             rides.addAll(cachedRideList)
+            Log.d("STATE", "ADDED")
         }
     }
 
@@ -276,7 +279,9 @@ class RideManager {
     }
 
     private fun getCachedRides(): Deferred<List<CRInfo>> = async {
-        crDb.crInfoDao().listCacheRides()
+        var res = crDb.crInfoDao().listCacheRides()
+        Log.d("STATE", "HMMM")
+        res
     }
 
     private fun getCachedRides(pinned: Boolean): Deferred<List<CRInfo>> = async {

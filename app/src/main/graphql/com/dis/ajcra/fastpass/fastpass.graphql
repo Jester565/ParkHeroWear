@@ -1,9 +1,11 @@
 ﻿fragment DisPass on Pass {
     id
     name
+    type
+    expirationDT
 }
 
-fragment DisFastPass on FastPass {
+fragment DisFastPassTransaction on FastPassTransaction {
     id
     rideID
 }
@@ -52,19 +54,19 @@ mutation AddPass($passID:String) {
 
 mutation AddFastPass($rideID:String, $targetPasses:[String]) {
     addFastPass(rideID:$rideID, targetPasses:$targetPasses) {
-        ...DisFastPass
+        ...DisFastPassTransaction
     }
 }
 
 query ListFastPasses {
     listFastPasses {
-        ...DisFastPass
+        ...DisFastPassTransaction
     }
 }
 
 query ListPasses {
     listPasses {
-    user
+        user
         passes {
             ...DisPass
         }
@@ -83,6 +85,14 @@ mutation UpdateRides {
             ...DisRide
         }
    }
+}
+
+mutation UpdateFastPasses {
+    updateFastPasses {
+        fps {
+            ...DisFastPassTransaction
+        }
+    }
 }
 
 subscription RidesUpdated {

@@ -25,7 +25,7 @@ class AccountActivity : WearableActivity() {
     fun initGoogleSignIn() {
         var gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
                 .requestEmail()
-                .requestIdToken("484305592931-jk3fi0ton2brsatal9cb1mrnnc2ra04m.apps.googleusercontent.com")
+                .requestIdToken("484305592931-pcg7s9kmq920p2csgmmc4ga0suo98vuh.apps.googleusercontent.com")
                 .build()
         mGoogleSignInClient = GoogleSignIn.getClient(this, gso)
     }
@@ -60,8 +60,8 @@ class AccountActivity : WearableActivity() {
                 if (idToken != null) {
                     cognitoManager.addLogin("accounts.google.com", idToken)
                     Log.d("STATE", "Login Complete")
-                    //val intent = Intent(this, MainActivity::class.java)
-                    //startActivity(intent)
+                    val intent = Intent(this, MainActivity::class.java)
+                    startActivity(intent)
                 }
             } catch (e: ApiException) {
                 Log.w("STATE", "signInResult:failed code=" + e.statusCode + ":" + e.message)

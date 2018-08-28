@@ -110,6 +110,10 @@ class MainActivity : WearableActivity() {
                     var intent = Intent(this, MainActivity::class.java)
                     startActivity(intent)
                 }
+                "Passes" -> {
+                    var intent = Intent(this, PassActivity::class.java)
+                    startActivity(intent)
+                }
                 "Account" -> {
                     var intent = Intent(this, AccountActivity::class.java)
                     startActivity(intent)

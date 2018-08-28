@@ -70,7 +70,16 @@
             android:value="@integer/google_play_services_version" />
 
         <activity android:name=".RideTimesActivity" />
-        <activity android:name=".AccountActivity"></activity>
+        <activity android:name=".AccountActivity" />
+        <activity
+            android:name=".PassActivity"
+            android:label="@string/title_activity_pass">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
     </application>
 
 </manifest>

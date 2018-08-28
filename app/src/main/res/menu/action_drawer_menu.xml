@@ -3,6 +3,9 @@
     <item android:id="@+id/menu_rides"
         android:icon="@drawable/ic_cancel_black_24dp"
         android:title="Rides"/>
+    <item android:id="@+id/menu_pass"
+        android:icon="@drawable/ic_credit_card_black_24dp"
+        android:title="Passes" />
     <item android:id="@+id/menu_account"
         android:icon="@drawable/ic_account_circle_black_24dp"
         android:title="Account" />
