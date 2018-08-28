@@ -5,7 +5,10 @@ import android.support.v7.app.AppCompatActivity
 import android.os.Bundle
 import android.support.v4.app.ActivityCompat.startActivityForResult
 import android.support.wearable.activity.WearableActivity
+import android.text.Editable
+import android.text.TextWatcher
 import android.util.Log
+import android.widget.Button
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInAccount
 import com.google.android.gms.auth.api.signin.GoogleSignInClient
@@ -20,6 +23,8 @@ class AccountActivity : WearableActivity() {
 
     private lateinit var mGoogleSignInClient: GoogleSignInClient
     private lateinit var googleButton: SignInButton
+    private lateinit var loginButton: Button
+
     private lateinit var cognitoManager: CognitoManager
 
     fun initGoogleSignIn() {
@@ -44,6 +49,12 @@ class AccountActivity : WearableActivity() {
 
         googleButton = findViewById(R.id.account_gbutton)
         initGoogleButton()
+
+        loginButton = findViewById(R.id.account_loginButton)
+        loginButton.setOnClickListener {
+            val intent = Intent(baseContext, LoginActivity::class.java)
+            startActivity(intent)
+        }
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {

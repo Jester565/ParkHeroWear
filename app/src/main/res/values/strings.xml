@@ -8,4 +8,5 @@
     <string name="message">Watch face tapped</string>
     <string name="my_analog_name">My Analog</string>
     <string name="title_activity_pass">PassActivity</string>
+    <string name="title_activity_login">LoginActivity</string>
 </resources>
