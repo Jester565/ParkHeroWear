@@ -4,15 +4,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
-import android.graphics.Bitmap
-import android.graphics.BitmapFactory
-import android.graphics.Canvas
-import android.graphics.Color
-import android.graphics.ColorMatrix
-import android.graphics.ColorMatrixColorFilter
-import android.graphics.Paint
-import android.graphics.Rect
-import android.net.Uri
+import android.graphics.*
 import android.os.Bundle
 import android.os.Handler
 import android.os.Message
@@ -20,17 +12,25 @@ import android.support.v7.graphics.Palette
 import android.support.wearable.watchface.CanvasWatchFaceService
 import android.support.wearable.watchface.WatchFaceService
 import android.support.wearable.watchface.WatchFaceStyle
+import android.text.TextPaint
 import android.util.Log
 import android.view.SurfaceHolder
 import android.widget.Toast
 import com.amazonaws.mobileconnectors.appsync.fetcher.AppSyncResponseFetchers
 import com.amazonaws.mobileconnectors.s3.transferutility.TransferState
+import com.dis.ajcra.fastpass.fragment.DisFastPassTransaction
 import kotlinx.coroutines.experimental.android.UI
 import kotlinx.coroutines.experimental.async
 import java.io.File
 
 import java.lang.ref.WeakReference
+import java.text.ParseException
+import java.text.SimpleDateFormat
 import java.util.*
+import java.util.concurrent.TimeUnit
+import kotlin.collections.ArrayList
+import kotlin.math.min
+import kotlin.math.roundToInt
 
 /**
  * Updates rate in milliseconds for interactive mode. We update once a second to advance the
@@ -51,19 +51,6 @@ private const val CENTER_GAP_AND_CIRCLE_RADIUS = 4f
 
 private const val SHADOW_RADIUS = 6f
 
-/**
- * Analog watch face with a ticking second hand. In ambient mode, the second hand isn't
- * shown. On devices with low-bit ambient mode, the hands are drawn without anti-aliasing in ambient
- * mode. The watch face is drawn with less contrast in mute mode.
- *
- *
- * Important Note: Because watch face apps do not have a default Activity in
- * their project, you will need to set your Configurations to
- * "Do not launch Activity" for both the Wear and/or Application modules. If you
- * are unsure how to do this, please review the "Run Starter project" section
- * in the Google Watch Face Code Lab:
- * https://codelabs.developers.google.com/codelabs/watchface/index.html#0
- */
 class FastPassFace : CanvasWatchFaceService() {
 
     override fun onCreateEngine(): Engine {
@@ -90,6 +77,8 @@ class FastPassFace : CanvasWatchFaceService() {
         var rideManager: RideManager
         var cfm: CloudFileManager
         var rideImgBmp: Bitmap? = null
+        var rideName: String? = null
+
         constructor(rideManager: RideManager, cfm: CloudFileManager, rideID: String, fpTime: Date) {
             this.rideManager = rideManager
             this.cfm = cfm
@@ -106,40 +95,37 @@ class FastPassFace : CanvasWatchFaceService() {
             return str
         }
 
-        /*
-        fun initBmp() = async {
-            var rides = rideManager.getRidesSuspend(AppSyncResponseFetchers.CACHE_FIRST)
-            if (rides != null) {
-                var ride = rides.find {
-                    it.id() == rideID
-                }
-                if (ride != null) {
-                    var picUrl = ride.info()?.picUrl()
-                    if (picUrl != null) {
-                        cfm.download(getImgObjKey(picUrl, 0, true), object: CloudFileListener() {
-                            override fun onError(id: Int, ex: Exception?) {
+        fun init() = async {
+            var gotRide = false
+            rideManager.getRide(rideID, object: RideManager.GetRideCB {
+                override fun onUpdate(ride: CRInfo) {
+                    async {
+                        if (!gotRide) {
+                            var picUrl = ride.picURL
+                            gotRide = true
+                            rideName = ride.name
+                            if (picUrl != null) {
+                                cfm.download(getImgObjKey(picUrl, 0, true), object : CloudFileListener() {
+                                    override fun onError(id: Int, ex: Exception?) {}
 
+                                    override fun onProgressChanged(id: Int, bytesCurrent: Long, bytesTotal: Long) {}
+
+                                    override fun onStateChanged(id: Int, state: TransferState?) {}
+
+                                    override fun onComplete(id: Int, file: File) {
+                                        async(UI) {
+                                            rideImgBmp = BitmapFactory.decodeStream(file.inputStream())
+                                        }
+                                    }
+                                })
                             }
-
-                            override fun onProgressChanged(id: Int, bytesCurrent: Long, bytesTotal: Long) {
-
-                            }
-
-                            override fun onStateChanged(id: Int, state: TransferState?) {
-
-                            }
-
-                            override fun onComplete(id: Int, file: File) {
-                                async(UI) {
-                                    rideImgBmp = BitmapFactory.decodeStream(file.inputStream())
-                                }
-                            }
-                        })
+                        }
                     }
                 }
-            }
+
+                override fun onFinalUpdate(ride: CRInfo) {}
+            })
         }
-        */
     }
 
     inner class Engine : CanvasWatchFaceService.Engine() {
@@ -175,11 +161,27 @@ class FastPassFace : CanvasWatchFaceService() {
         private var cognitoManager: CognitoManager = CognitoManager.GetInstance(applicationContext)
         private var rideManager: RideManager = RideManager(applicationContext)
         private var cfm: CloudFileManager = CloudFileManager.GetInstance(cognitoManager, applicationContext)
+        private var appSync: AppSyncTest = AppSyncTest.getInstance(applicationContext)
 
-        private var width: Float = 0f
-        private var height: Float = 0f
+        private var colors = intArrayOf(Color.RED, Color.GREEN, Color.BLUE)
 
-        var fpPoint = FPPoint(rideManager, cfm, "353295", Date())
+        private var width: Float = 300f
+        private var height: Float = 300f
+
+        private var fpDateFormat: SimpleDateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.ENGLISH)
+        private var fpDateFormat2: SimpleDateFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.ENGLISH)
+
+        private var fpPoints = TreeMap<Long, ArrayList<FastPassFace.FPPoint>>()
+        private var fpPointArr = ArrayList<FastPassFace.FPPoint>()
+
+        private var calendar = Calendar.getInstance()
+
+        private var tapCounter: Int = 0
+
+        private var nextSelectionTime: Date? = null
+        private var nextSelectionStr: String = "Loading.."
+
+        var hourFormatter = SimpleDateFormat("h:mm a")
 
         /* Handler to update the time once a second in interactive mode. */
         private val mUpdateTimeHandler = EngineHandler(this)
@@ -202,35 +204,16 @@ class FastPassFace : CanvasWatchFaceService() {
 
             initializeBackground()
             initializeWatchFace()
-
-            //fpPoint.initBmp()
         }
 
         private fun initializeBackground() {
-            Log.d("STATE", "TESTING")
             mBackgroundPaint = Paint().apply {
                 color = Color.BLACK
             }
             mBackgroundBitmap = Bitmap.createBitmap(320, 320, Bitmap.Config.ARGB_8888)
-            Log.d("STATE", "Dimensions: " + mBackgroundBitmap.width + "x" + mBackgroundBitmap.height)
             var canvas = Canvas(mBackgroundBitmap)
             canvas.drawColor(Color.BLACK)
-            var paint: Paint = Paint()
-            paint.color = Color.RED
-            paint.strokeWidth = 5f
-            paint.isAntiAlias = true
-            paint.strokeCap = Paint.Cap.ROUND
-            paint.style = Paint.Style.STROKE
-            //canvas.drawRect(0f, 0f, mBackgroundBitmap.width.toFloat()/2f, mBackgroundBitmap.height.toFloat()/2f, paint)
-            canvas.drawArc(5f, 5f, mBackgroundBitmap.width.toFloat() - 5f, mBackgroundBitmap.height.toFloat() - 5f, 0f, 30f, false, paint)
-            paint.color = Color.GREEN
-            canvas.drawArc(12f, 12f, mBackgroundBitmap.width.toFloat() - 12f, mBackgroundBitmap.height.toFloat() - 12f, 15f, 30f, false, paint)
 
-            paint.style = Paint.Style.FILL
-            canvas.drawCircle(mBackgroundBitmap.width.toFloat()/2f, mBackgroundBitmap.height.toFloat()/2f, mBackgroundBitmap.width.toFloat()/5f, paint)
-
-            //canvas.drawRect(0f, 0f, mBackgroundBitmap.width, mBackgroundBitmap.height, P)
-            /* Extracts colors from background image to improve watchface style. */
             Palette.from(mBackgroundBitmap).generate {
                 it?.let {
                     mWatchHandHighlightColor = it.getVibrantColor(Color.RED)
@@ -374,6 +357,9 @@ class FastPassFace : CanvasWatchFaceService() {
              * insets, so that, on round watches with a "chin", the watch face is centered on the
              * entire screen, not just the usable portion.
              */
+            this.width = width.toFloat()
+            this.height = height.toFloat()
+
             mCenterX = width / 2f
             mCenterY = height / 2f
 
@@ -433,31 +419,216 @@ class FastPassFace : CanvasWatchFaceService() {
                 WatchFaceService.TAP_TYPE_TOUCH_CANCEL -> {
                     // The user has started a different gesture or otherwise cancelled the tap.
                 }
-                WatchFaceService.TAP_TYPE_TAP ->
-                    // The user has completed the tap gesture.
-                    // TODO: Add code to handle the tap gesture.
-                    Toast.makeText(applicationContext, R.string.message, Toast.LENGTH_SHORT)
-                            .show()
+                WatchFaceService.TAP_TYPE_TAP -> {
+                    var centerDistX = mCenterX - x
+                    var centerDistY = mCenterY - y
+                    var dist = Math.sqrt((centerDistX * centerDistX + centerDistY * centerDistY).toDouble())
+                    if (dist < width / 5.0f) {
+                        var intent = Intent(applicationContext, PassActivity::class.java)
+                        startActivity(intent)
+                    } else {
+                        tapCounter++
+                        if (tapCounter > fpPointArr.size) {
+                            tapCounter = 0
+                        }
+                    }
+                }
             }
             invalidate()
         }
 
+        fun refresh() {
+            tapCounter = 0
+            cognitoManager.subscribeToLogin { ex ->
+                if (ex == null) {
+                    appSync.updateFastPasses(object: AppSyncTest.UpdateFastPassesCallback {
+                        override fun onResponse(response: List<DisFastPassTransaction>, nextSelection: String?) {
+                            async(UI) {
+                                if (nextSelection != null) {
+                                    nextSelectionTime = parseFpDate(nextSelection)
+                                    if (nextSelectionTime != null && nextSelectionTime!! > mCalendar.time) {
+                                        nextSelectionStr = hourFormatter.format(nextSelectionTime)
+                                    } else {
+                                        nextSelectionStr = ""
+                                        nextSelectionTime = null
+                                    }
+                                }
+                                else {
+                                    nextSelectionStr = ""
+                                    nextSelectionTime = null
+                                }
+
+                                var pointsCopy = TreeMap<Long, ArrayList<FPPoint>>(fpPoints)
+                                fpPoints.clear()
+                                for (tran in response) {
+                                    if (tran.fpDT() != null) {
+                                        var date = parseFpDate(tran.fpDT()!!)
+                                        var fpPoint: FPPoint? = null
+                                        var list = pointsCopy[date.time]
+                                        if (list != null) {
+                                            fpPoint = list.find { it ->
+                                                it.rideID == tran.rideID()
+                                            }
+                                        }
+                                        if (fpPoint == null) {
+                                            fpPoint = FPPoint(rideManager, cfm, tran.rideID()!!, date)
+                                            fpPoint!!.init()
+                                        }
+                                        var newList = fpPoints[date.time]
+                                        if (newList == null) {
+                                            newList = ArrayList()
+                                            fpPoints[date.time] = newList
+                                        }
+                                        newList!!.add(fpPoint)
+                                    }
+                                }
+                                fpPointArr.clear()
+                                for (entry in fpPoints) {
+                                    for (point in entry.value) {
+                                        fpPointArr.add(point)
+                                    }
+                                }
+                            }
+                        }
+
+                        override fun onError(ec: Int?, msg: String?) {
+
+                        }
+                    })
+                }
+            }
+        }
+
+        private fun genTillStr(fpDate: Date): String {
+            var diff = fpDate.time - Date().time
+            var till = true
+            if (diff < 0) {
+                //add an hour to switch to fast pass ending time
+                diff += 60 * 60 * 1000
+                till = false
+            }
+            val minutes = TimeUnit.MILLISECONDS.toMinutes(diff)
+            val hours = TimeUnit.MILLISECONDS.toHours(diff)
+            var hoursFlt = hours.toFloat() + (minutes % 60).toFloat()/60f
+
+            var tillStr = ""
+            if (till) {
+                tillStr += "Ready in\n"
+            } else if (diff > 0) {
+                tillStr += "Exp in\n"
+            }
+            if (hours > 2) {
+                tillStr += "~" + Math.abs(hoursFlt).roundToInt().toString() + " hrs"
+            } else if (hours == 0L) {
+                tillStr += Math.abs(minutes % 60).toString() + " mins"
+            } else {
+                tillStr += Math.abs(hours).toString() + ":" + Math.abs(minutes % 60).toString()
+            }
+            if (!till && diff <= 0) {
+                tillStr += "\nlate"
+            }
+            return tillStr
+        }
 
         override fun onDraw(canvas: Canvas, bounds: Rect) {
-            Log.d("STATE", "DRAWING")
             val now = System.currentTimeMillis()
             mCalendar.timeInMillis = now
 
             drawBackground(canvas)
-            if (fpPoint.rideImgBmp != null) {
-                Log.d("STATE", "RideImgBmp")
-                canvas.drawBitmap(fpPoint.rideImgBmp, (mCenterX - fpPoint.rideImgBmp!!.width/2), (mCenterY - fpPoint.rideImgBmp!!.height/2), mBackgroundPaint)
+
+            var textPaint = TextPaint()
+            textPaint.isAntiAlias = true
+            textPaint.color = Color.WHITE
+            textPaint.textSize = 30f
+            textPaint.textAlign = Paint.Align.CENTER
+
+            var xPos = (canvas.getWidth() / 2).toFloat()
+
+            if (tapCounter > 0 && fpPointArr.size > 0) {
+                var colorI = (tapCounter - 1) % colors.size
+                var circlePaint = Paint()
+                circlePaint.isAntiAlias = true
+                circlePaint.color = colors[colorI]
+                canvas.drawCircle(mBackgroundBitmap.width.toFloat()/2f, mBackgroundBitmap.height.toFloat()/2f, mBackgroundBitmap.width.toFloat()/5f, circlePaint)
+
+                var fpPointI = (tapCounter - 1) % fpPointArr.size
+                var fpPoint = fpPointArr[fpPointI]
+                if (fpPoint.rideImgBmp != null) {
+                    canvas.drawBitmap(fpPoint.rideImgBmp, (mCenterX - fpPoint.rideImgBmp!!.width/2), (mCenterY - fpPoint.rideImgBmp!!.height/2), mBackgroundPaint)
+                }
+
+                var yPos = ((5 * canvas.getHeight() / 6) - ((textPaint.descent() + textPaint.ascent()) / 2))
+                canvas.drawText(hourFormatter.format(fpPoint.fpTime), xPos, yPos, textPaint)
+
+                yPos = ((canvas.getHeight() / 8) - ((textPaint.descent() + textPaint.ascent()) / 2))
+                var tillStr = genTillStr(fpPoint.fpTime)
+                textPaint.textSize = 16f
+                for (line in tillStr.split("\n")) {
+                  canvas.drawText(line, xPos, yPos, textPaint)
+                  yPos += textPaint.descent() - textPaint.ascent()
+                }
+            } else {
+                var circleColor = Color.rgb(30, 0, 0)
+                if (nextSelectionTime != null) {
+                    var yPos = ((canvas.getHeight() / 8) - ((textPaint.descent() + textPaint.ascent()) / 2))
+
+                    var tillStr = genTillStr(nextSelectionTime!!)
+                    textPaint.textSize = 16f
+                    for (line in tillStr.split("\n")) {
+                        canvas.drawText(line, xPos, yPos, textPaint);
+                        yPos += textPaint.descent() - textPaint.ascent();
+                    }
+                    textPaint.textSize = 30f
+                    yPos = ((5 * canvas.getHeight() / 6) - ((textPaint.descent() + textPaint.ascent()) / 2))
+                    canvas.drawText(nextSelectionStr, xPos, yPos, textPaint)
+                } else {
+                    circleColor = Color.rgb(0, 30, 0)
+                }
+                var circlePaint = Paint()
+                circlePaint.isAntiAlias = true
+                circlePaint.color = circleColor
+                canvas.drawCircle(mBackgroundBitmap.width.toFloat()/2f, mBackgroundBitmap.height.toFloat()/2f, mBackgroundBitmap.width.toFloat()/5f, circlePaint)
+            }
+
+            var colorI = 0
+
+            var lastEndDegs = ArrayList<Float>()
+            for (fpPoint in fpPointArr) {
+                if (colorI >= colors.size) {
+                    colorI = 0
+                }
+                var paint = Paint()
+                paint.strokeWidth = 5f
+                paint.color = colors[colorI]
+                paint.isAntiAlias = true
+                paint.strokeCap = Paint.Cap.ROUND
+                paint.style = Paint.Style.STROKE
+
+                calendar.time = fpPoint.fpTime
+                var hours = calendar.get(Calendar.HOUR_OF_DAY)
+                var minutes = calendar.get(Calendar.MINUTE)
+                Log.d("FPTIME", hours.toString() + ":" + minutes.toString())
+                var totalMins = hours * 60 + minutes
+                if (totalMins > 12 * 60) {
+                    totalMins -= 12 * 60
+                }
+                var startDeg = (totalMins.toFloat() / (12 * 60).toFloat()) * 360.0f - 90.0f
+
+                Log.d("FPDEG", startDeg.toString())
+                var height = 13f
+                for (endDeg in lastEndDegs) {
+                    if (endDeg > startDeg) {
+                        height += 8f
+                    }
+                }
+                lastEndDegs.add(startDeg + 30f)
+                canvas.drawArc(height, height, mBackgroundBitmap.width.toFloat() - height, mBackgroundBitmap.height.toFloat() - height, startDeg, 30f, false, paint)
+                colorI++
             }
             drawWatchFace(canvas)
         }
 
         private fun drawBackground(canvas: Canvas) {
-
             if (mAmbient && (mLowBitAmbient || mBurnInProtection)) {
                 canvas.drawColor(Color.BLACK)
             } else if (mAmbient) {
@@ -525,6 +696,25 @@ class FastPassFace : CanvasWatchFaceService() {
              * Otherwise, we only update the watch face once a minute.
              */
             if (!mAmbient) {
+                mSecondPaint.color = Color.WHITE
+                if (tapCounter > 0) {
+                    var colorI = (tapCounter - 1) % colors.size
+                    mSecondPaint.color = colors[colorI]
+                } else if (fpPointArr.size > 0) {
+                    var now = Date().time
+                    var i = 0
+                    for (fpPoint in fpPointArr) {
+                        if (now >= fpPoint.fpTime.time && now < fpPoint.fpTime.time + 3600000L) {
+                            mSecondPaint.color = colors[i % colors.size]
+                            break
+                        }
+                        //Array is ordered, so if now is less than this fast pass time, there is nothing left for it
+                        if (now < fpPoint.fpTime.time) {
+                            break
+                        }
+                        i++
+                    }
+                }
                 canvas.rotate(secondsRotation - minutesRotation, mCenterX, mCenterY)
                 canvas.drawLine(
                         mCenterX,
@@ -551,6 +741,7 @@ class FastPassFace : CanvasWatchFaceService() {
                 registerReceiver()
                 /* Update time zone in case it changed while we weren't visible. */
                 mCalendar.timeZone = TimeZone.getDefault()
+                refresh()
                 invalidate()
             } else {
                 unregisterReceiver()
@@ -604,6 +795,14 @@ class FastPassFace : CanvasWatchFaceService() {
                 val timeMs = System.currentTimeMillis()
                 val delayMs = INTERACTIVE_UPDATE_RATE_MS - timeMs % INTERACTIVE_UPDATE_RATE_MS
                 mUpdateTimeHandler.sendEmptyMessageDelayed(MSG_UPDATE_TIME, delayMs)
+            }
+        }
+
+        private fun parseFpDate(str: String): Date {
+            try {
+                return fpDateFormat.parse(str)
+            } catch (ex: ParseException) {
+                return fpDateFormat2.parse(str)
             }
         }
     }

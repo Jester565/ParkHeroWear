@@ -5,9 +5,31 @@
     expirationDT
 }
 
+fragment DisFastPass on FastPass {
+    redeemable
+    official
+    startDT
+    pass {
+        ...DisPass
+    }
+}
+
+fragment DisUserFastPasses on UserFastPasses {
+    user
+    passes {
+        ...DisFastPass
+    }
+}
+
 fragment DisFastPassTransaction on FastPassTransaction {
     id
     rideID
+    fpDT
+    creationDT
+    authorID
+    userPasses {
+        ...DisUserFastPasses
+    }
 }
 
 fragment DisRideTime on RideTime {
@@ -52,6 +74,10 @@ mutation AddPass($passID:String) {
     }
 }
 
+mutation RemovePass($passID: String) {
+    removePass(passID:$passID)
+}
+
 mutation AddFastPass($rideID:String, $targetPasses:[String]) {
     addFastPass(rideID:$rideID, targetPasses:$targetPasses) {
         ...DisFastPassTransaction
@@ -92,6 +118,7 @@ mutation UpdateFastPasses {
         fps {
             ...DisFastPassTransaction
         }
+        nextSelection
     }
 }
 
@@ -110,6 +137,33 @@ query GetRideDPs($rideID:String) {
         }
         predictTimes {
             ...DisRideDP
+        }
+    }
+}
+
+query GetSchedules {
+    getSchedules {
+        schedules {
+            parkName
+            parkIconUrl
+            openTime
+            closeTime
+            magicStartTime
+            magicEndTime
+            crowdLevel
+            resortName
+            blockLevel
+            date
+        }
+    }
+}
+
+query GetHourlyWeather($date:String) {
+    getHourlyWeather(date:$date) {
+        weather {
+            dateTime
+            feelsLikeF
+            rainStatus
         }
     }
 }

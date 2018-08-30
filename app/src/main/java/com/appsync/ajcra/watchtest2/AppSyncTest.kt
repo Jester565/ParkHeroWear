@@ -16,7 +16,7 @@ import com.dis.ajcra.fastpass.fragment.DisPass
 import com.dis.ajcra.fastpass.fragment.DisRide
 import com.dis.ajcra.fastpass.fragment.DisRideDP
 import org.json.JSONObject
-import java.util.ArrayList
+import java.util.*
 
 class AppSyncTest {
     companion object {
@@ -69,6 +69,30 @@ class AppSyncTest {
                         Log.d("STATE", "ON RESP")
                         if (!response.hasErrors()) {
                             cb.onResponse(response.data()!!.addPass()!!.fragments().disPass())
+                        } else {
+                            var errRes = parseRespErrs(response as Response<Any>)
+                            cb.onError(errRes?.first, errRes?.second)
+                        }
+                    }
+                })
+    }
+
+    interface RemovePassCallback {
+        fun onResponse(response: Boolean)
+        fun onError(ec: Int?, msg: String?)
+    }
+
+    fun removePass(passID: String, cb: RemovePassCallback) {
+        (client as AWSAppSyncClient).mutate(RemovePassMutation.builder().passID(passID).build())
+                .enqueue(object: GraphQLCall.Callback<RemovePassMutation.Data>() {
+                    override fun onFailure(e: ApolloException) {
+                        Log.d("STATE", "ON FAILURE: " + e.message)
+                    }
+
+                    override fun onResponse(response: Response<RemovePassMutation.Data>) {
+                        Log.d("STATE", "ON RESP")
+                        if (!response.hasErrors()) {
+                            cb.onResponse(true)
                         } else {
                             var errRes = parseRespErrs(response as Response<Any>)
                             cb.onError(errRes?.first, errRes?.second)
@@ -151,6 +175,37 @@ class AppSyncTest {
                                 disFastPasses.add(fastPass.fragments().disFastPassTransaction())
                             }
                             cb.onResponse(disFastPasses)
+                        } else {
+                            var errRes = parseRespErrs(response as Response<Any>)
+                            cb.onError(errRes?.first, errRes?.second)
+                        }
+                    }
+                })
+    }
+
+    interface UpdateFastPassesCallback {
+        fun onResponse(response: List<DisFastPassTransaction>, nextSelectionTime: String?)
+        fun onError(ec: Int?, msg: String?)
+    }
+
+    fun updateFastPasses(cb: UpdateFastPassesCallback, fetcher: ResponseFetcher = AppSyncResponseFetchers.CACHE_AND_NETWORK) {
+        (client as AWSAppSyncClient).mutate(UpdateFastPassesMutation.builder().build())
+                .enqueue(object: GraphQLCall.Callback<UpdateFastPassesMutation.Data>() {
+                    override fun onFailure(e: ApolloException) {
+                        Log.d("STATE", "ON FAILURE: " + e.message)
+                    }
+
+                    override fun onResponse(response: Response<UpdateFastPassesMutation.Data>) {
+                        Log.d("STATE", "ON RESP")
+                        if (!response.hasErrors()) {
+                            var disFastPasses = ArrayList<DisFastPassTransaction>()
+                            if (response.data()?.updateFastPasses()?.fps() != null) {
+                                var fastPasses = response.data()!!.updateFastPasses()!!.fps()!!
+                                for (fastPass in fastPasses) {
+                                    disFastPasses.add(fastPass.fragments().disFastPassTransaction())
+                                }
+                            }
+                            cb.onResponse(disFastPasses, response.data()?.updateFastPasses()?.nextSelection())
                         } else {
                             var errRes = parseRespErrs(response as Response<Any>)
                             cb.onError(errRes?.first, errRes?.second)
@@ -316,6 +371,55 @@ class AppSyncTest {
                 })
     }
 
+    interface GetSchedulesCallback {
+        fun onResponse(response: List<GetSchedulesQuery.Schedule>)
+        fun onError(ec: Int?, msg: String?)
+    }
+
+    fun getSchedules(cb: GetSchedulesCallback, fetcher: ResponseFetcher = AppSyncResponseFetchers.NETWORK_ONLY) {
+        (client as AWSAppSyncClient).query(GetSchedulesQuery.builder().build())
+                .responseFetcher(fetcher)
+                .enqueue(object: GraphQLCall.Callback<GetSchedulesQuery.Data>() {
+                    override fun onFailure(e: ApolloException) {
+                        Log.d("STATE", "ON FAILURE: " + e.message)
+                        cb.onError(null, e.message)
+                    }
+
+                    override fun onResponse(response: Response<GetSchedulesQuery.Data>) {
+                        if (!response.hasErrors()) {
+                            cb.onResponse(response.data()!!.schedules?.schedules()!!)
+                        } else {
+                            var parsedErr = parseRespErrs(response as Response<Any>)
+                            cb.onError(parsedErr?.first, parsedErr?.second)
+                        }
+                    }
+                })
+    }
+
+    interface GetHourlyWeatherCallback {
+        fun onResponse(response: List<GetHourlyWeatherQuery.Weather>)
+        fun onError(ec: Int?, msg: String?)
+    }
+
+    fun getHourlyWeather(dateStr: String, cb: GetHourlyWeatherCallback, fetcher: ResponseFetcher = AppSyncResponseFetchers.NETWORK_ONLY) {
+        (client as AWSAppSyncClient).query(GetHourlyWeatherQuery.builder().date(dateStr).build())
+                .responseFetcher(fetcher)
+                .enqueue(object: GraphQLCall.Callback<GetHourlyWeatherQuery.Data>() {
+                    override fun onFailure(e: ApolloException) {
+                        Log.d("STATE", "ON FAILURE: " + e.message)
+                        cb.onError(null, e.message)
+                    }
+
+                    override fun onResponse(response: Response<GetHourlyWeatherQuery.Data>) {
+                        if (!response.hasErrors()) {
+                            cb.onResponse(response.data()!!.hourlyWeather!!.weather()!!)
+                        } else {
+                            var parsedErr = parseRespErrs(response as Response<Any>)
+                            cb.onError(parsedErr?.first, parsedErr?.second)
+                        }
+                    }
+                })
+    }
 
     fun getClient(ctx: Context) {
         var cognitoManager = CognitoManager.GetInstance(ctx)
