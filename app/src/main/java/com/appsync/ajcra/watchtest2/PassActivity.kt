@@ -44,6 +44,8 @@ class PassActivity : WearableActivity() {
     private var passProfiles = ArrayList<Profile>()
     private var dataset = ArrayList<DisPass>()
 
+    private lateinit var subLoginToken: String
+
     private var listPassCB = object: PassManager.ListPassesCB {
         override fun passUpdated(userID: String, passes: List<DisPass>) {
             async(UI) {
@@ -94,7 +96,16 @@ class PassActivity : WearableActivity() {
 
     override fun onResume() {
         super.onResume()
-        passManager.listPasses()
+        subLoginToken = cognitoManager.subscribeToLogin { ex ->
+            if (ex == null) {
+                passManager.listPasses()
+            }
+        }
+    }
+
+    override fun onPause() {
+        super.onPause()
+        cognitoManager.unsubscribeFromLogin(subLoginToken)
     }
 
     override fun onStop() {

@@ -2,35 +2,17 @@ package com.appsync.ajcra.watchtest2
 
 import android.animation.ArgbEvaluator
 import android.animation.ValueAnimator
-import android.arch.persistence.room.Database
-import android.arch.persistence.room.Room
 import android.content.Intent
-import android.graphics.Color
 import android.os.Bundle
-import android.support.v4.content.ContextCompat.startActivity
 import android.support.v7.widget.RecyclerView
 import android.support.wear.widget.WearableLinearLayoutManager
 import android.support.wear.widget.WearableRecyclerView
 import android.support.wear.widget.drawer.WearableActionDrawerView
 import android.support.wear.widget.drawer.WearableNavigationDrawerView
 import android.support.wearable.activity.WearableActivity
-import android.support.wearable.view.drawer.WearableNavigationDrawer
 import android.util.Log
 import android.view.View
 import android.widget.ProgressBar
-import com.amazonaws.mobileconnectors.apigateway.ApiClientFactory
-import com.appsync.ajcra.watchtest2.RideManager.Companion.rideManager
-import com.appsync.ajcra.watchtest2.model.RideInfo
-import com.appsync.ajcra.watchtest2.model.RideInfoInfo
-import com.appsync.ajcra.watchtest2.model.RideInfoTime
-import com.dis.ajcra.fastpass.GetRideDPsQuery
-import com.dis.ajcra.fastpass.fragment.DisRide
-import com.dis.ajcra.fastpass.fragment.DisRideTime
-import kotlinx.coroutines.experimental.Deferred
-import kotlinx.coroutines.experimental.android.UI
-import kotlinx.coroutines.experimental.async
-import java.text.SimpleDateFormat
-import java.time.format.DateTimeFormatter
 
 
 class MainActivity : WearableActivity() {
@@ -45,6 +27,8 @@ class MainActivity : WearableActivity() {
     private var clickedRideID: String? = null
     private lateinit var mWearableNavigationDrawer: WearableNavigationDrawerView
     private lateinit var mWearableActionDrawer: WearableActionDrawerView
+
+    private lateinit var subLoginToken: String
 
     var listRideCB = object: RideManager.ListRidesCB {
         override fun onAllUpdated() {
@@ -202,37 +186,46 @@ class MainActivity : WearableActivity() {
 
     override fun onResume() {
         super.onResume()
-        getRides()
-        if (clickedRideID != null) {
-            var crid = clickedRideID
-            if (crid != null) {
-                var ride = rideManager.getMemCachedRide(crid)
-                if (ride != null) {
-                    if (!ride.pinned) {
-                        var arrI = pinnedRides.binarySearch {
-                            it.name.compareTo(ride.name)
+        subLoginToken = cognitoManager.subscribeToLogin { ex ->
+            if (ex == null) {
+                getRides()
+                if (clickedRideID != null) {
+                    var crid = clickedRideID
+                    if (crid != null) {
+                        var ride = rideManager.getMemCachedRide(crid)
+                        if (ride != null) {
+                            if (!ride.pinned) {
+                                var arrI = pinnedRides.binarySearch {
+                                    it.name.compareTo(ride.name)
+                                }
+                                if (arrI < 0) {
+                                    Log.e("ERRRRRR", "RideI was less than 0 on onUpdate")
+                                    return@subscribeToLogin
+                                }
+                                pinnedRides.removeAt(arrI)
+                                recyclerViewAdapter.notifyItemRemoved(arrI)
+                            } else {
+                                var arrI = rides.binarySearch {
+                                    it.name.compareTo(ride.name)
+                                }
+                                if (arrI < 0) {
+                                    Log.e("ERRRRRR", "RideI was less than 0 on onUpdate")
+                                    return@subscribeToLogin
+                                }
+                                rides.removeAt(arrI)
+                                recyclerViewAdapter.notifyItemRemoved(arrI + pinnedRides.size)
+                            }
+                            addRide(ride)
                         }
-                        if (arrI < 0) {
-                            Log.e("ERRRRRR", "RideI was less than 0 on onUpdate")
-                            return
-                        }
-                        pinnedRides.removeAt(arrI)
-                        recyclerViewAdapter.notifyItemRemoved(arrI)
-                    } else {
-                        var arrI = rides.binarySearch {
-                            it.name.compareTo(ride.name)
-                        }
-                        if (arrI < 0) {
-                            Log.e("ERRRRRR", "RideI was less than 0 on onUpdate")
-                            return
-                        }
-                        rides.removeAt(arrI)
-                        recyclerViewAdapter.notifyItemRemoved(arrI + pinnedRides.size)
                     }
-                    addRide(ride)
                 }
             }
         }
+    }
+
+    override fun onPause() {
+        super.onPause()
+        cognitoManager.unsubscribeFromLogin(subLoginToken)
     }
 
     override fun onStop() {
