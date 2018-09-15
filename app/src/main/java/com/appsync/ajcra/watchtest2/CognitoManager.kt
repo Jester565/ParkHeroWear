@@ -81,7 +81,7 @@ class CognitoManager {
     }
 
     fun refreshLogin() {
-        async {
+        async(UI) {
             refreshHandler?.removeCallbacks(refreshCB)
             refreshHandler = null
             refreshCB = null
@@ -101,7 +101,7 @@ class CognitoManager {
                 //We need to get a new token
                 result.addOnCompleteListener { res ->
                     if (result.isSuccessful) {
-                        async {
+                        async(UI) {
                             addLogin("accounts.google.com", result.getResult().idToken!!).await()
                             for (entry in loginHandlers) {
                                 entry.value.invoke(null)
