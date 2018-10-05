@@ -1,6 +1,7 @@
 package com.appsync.ajcra.watchtest2
 
 import android.content.Context
+import android.os.Bundle
 import android.os.Handler
 import android.util.Log
 import com.amazonaws.AmazonServiceException
@@ -17,6 +18,7 @@ import com.amazonaws.services.cognitoidentityprovider.model.MFAMethodNotFoundExc
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInClient
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
+import com.google.firebase.analytics.FirebaseAnalytics
 import kotlinx.coroutines.experimental.Deferred
 import kotlinx.coroutines.experimental.android.UI
 import kotlinx.coroutines.experimental.async
@@ -122,12 +124,6 @@ class CognitoManager {
                     for (entry in loginHandlers) {
                         entry.value.invoke(null)
                     }
-
-                    refreshCB = Runnable {
-                        refreshLogin()
-                    }
-                    refreshHandler = Handler()
-                    refreshHandler?.postDelayed(refreshCB, credentialsProvider.sessionCredentitalsExpiration.time - Date().time - 1000 * 30)
                 }
             }
 
@@ -324,21 +320,40 @@ class CognitoManager {
     }
 
     fun addLogin(provider: String, token: String) = async {
-        val logins = HashMap<String, String>()
-        logins.put(provider, token)
-        for ((key) in credentialsProvider.logins) {
-            Log.d("STATE", "Login: " + key)
+        Log.d("COGNITOMANAGER", "ADDLOGIN: " + provider + ":" + token)
+        try {
+            val logins = HashMap<String, String>()
+            logins.put(provider, token)
+            for ((key) in credentialsProvider.logins) {
+                Log.d("STATE", "Login: " + key)
+            }
+            credentialsProvider.clear()
+            for ((key) in credentialsProvider.logins) {
+                Log.d("STATE", "Login: " + key)
+            }
+            credentialsProvider.logins = logins
+            credentialsProvider.refresh()
+            Log.d("STATE", "IdentityID: " + credentialsProvider.identityId)
+            Log.d("STATE", "Aws AccessID: " + credentialsProvider.credentials.awsAccessKeyId)
+            Log.d("STATE", "Aws Secret: " + credentialsProvider.credentials.awsSecretKey)
+            Log.d("STATE", "Token: " + credentialsProvider.credentials.sessionToken)
+        } catch (ex: Exception) {
+            Log.e("COGNITOMANAGER", "ADDLOGIN EXCEPTION: " + ex.message)
         }
-        credentialsProvider.clear()
-        for ((key) in credentialsProvider.logins) {
-            Log.d("STATE", "Login: " + key)
+
+        async(UI) {
+            try {
+                refreshCB = Runnable {
+                    refreshLogin()
+                }
+                refreshHandler = Handler()
+                var delayMillis = credentialsProvider.sessionCredentitalsExpiration.time - Date().time + 100  //probably don't need to add 100
+                refreshHandler?.postDelayed(refreshCB, delayMillis)
+                Log.d("COGNITOMANAGER", "POST DELAY MINS: " + delayMillis / (1000 * 60))
+            } catch (ex: Exception) {
+                Log.e("COGNITOMANAGER", "POST DELAY FAILED: " + ex.message)
+            }
         }
-        credentialsProvider.logins = logins
-        credentialsProvider.refresh()
-        Log.d("STATE", "IdentityID: " + credentialsProvider.identityId)
-        Log.d("STATE", "Aws AccessID: " + credentialsProvider.credentials.awsAccessKeyId)
-        Log.d("STATE", "Aws Secret: " + credentialsProvider.credentials.awsSecretKey)
-        Log.d("STATE", "Token: " + credentialsProvider.credentials.sessionToken)
     }
 
     interface ResetPwdHandler {
